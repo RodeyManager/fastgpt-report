@@ -54,6 +54,22 @@ importers:
         specifier: ^5.4.0
         version: 5.4.21
 
+  apps/knowledge-process-demo:
+    dependencies:
+      vue:
+        specifier: ^3.4.0
+        version: 3.5.33
+      vue-router:
+        specifier: ^4.3.0
+        version: 4.6.4(vue@3.5.33)
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^5.0.0
+        version: 5.2.4(vite@5.4.21)(vue@3.5.33)
+      vite:
+        specifier: ^5.4.0
+        version: 5.4.21
+
 packages:
 
   '@babel/helper-string-parser@7.27.1':

@@ -35,8 +35,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
+      - name: Build fastgpt-report
         run: pnpm --filter fastgpt-analysis-report build
+
+      - name: Build knowledge-process-demo
+        run: pnpm --filter knowledge-process-demo build
+
+      - name: Merge dist directories
+        run: |
+          mkdir -p _merged_dist
+          cp -r apps/fastgpt-report/dist/. _merged_dist/
+          mkdir -p _merged_dist/demo
+          cp -r apps/knowledge-process-demo/dist/. _merged_dist/demo/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -44,7 +54,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/fastgpt-report/dist
+          path: _merged_dist
 
   deploy:
     environment:

@@ -15,7 +15,6 @@ const routes = [
   { path: '/schemas', name: 'schemas', component: () => import('@/views/Section11Schemas.vue'), meta: { title: '数据表结构' } },
   { path: '/dependencies', name: 'dependencies', component: () => import('@/views/Section12Dependencies.vue'), meta: { title: '核心依赖包' } },
   { path: '/architecture-detail', name: 'architecture-detail', component: () => import('@/views/Section13ArchitectureDetail.vue'), meta: { title: '项目架构图' } },
-  { path: '/demo', name: 'demo', component: () => import('@/views/Section14Demo.vue'), meta: { title: 'Demo演示' } },
 ]
 
 const router = createRouter({

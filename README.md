@@ -6,9 +6,10 @@ FastGPT 源码分析报告与文档处理流水线 Demo。
 
 ```
 fastgpt-report/
-├── apps/fastgpt-report/    # Vue 分析报告 Web 应用
-├── demo/                   # Python Streamlit Demo（复刻文档处理流水线）
-└── packages/               # 共享包（预留）
+├── apps/fastgpt-report/          # Vue 分析报告 Web 应用（13 章节）
+├── apps/knowledge-process-demo/  # Vue 文档处理 Demo 前端（5 步流水线）
+├── knowledge-process-api/        # Python FastAPI 后端（文档处理 REST API）
+└── packages/                     # 共享包（预留）
 ```
 
 ## Vue 分析报告
@@ -30,7 +31,9 @@ fastgpt-report/
 13. 架构细节
 14. 文档处理 Demo
 
-已部署至 GitHub Pages：`https://rodeymanager.github.io/fastgpt-report/`
+已部署至 GitHub Pages：
+- 分析报告：`https://rodeymanager.github.io/fastgpt-report/`
+- 文档处理 Demo：`https://rodeymanager.github.io/fastgpt-report/demo/`
 
 ### 开发
 
@@ -45,34 +48,56 @@ pnpm dev
 pnpm build
 ```
 
-## Python Demo
+## 文档处理 Demo（前后端分离）
 
-`demo/` 目录包含一个独立的 Python 项目，使用 Streamlit 交互式复刻 FastGPT 的 5 步文档处理流水线：
+### 前端：apps/knowledge-process-demo
 
-| 步骤 | 功能 | Python 库 | 对应 FastGPT 模块 |
-|------|------|-----------|-------------------|
-| 1. 文档解析 | PDF / DOCX / CSV / XLSX / PPTX / TXT | PyMuPDF, mammoth, openpyxl, python-pptx, chardet | `core/dataset/*/readFileFn` |
-| 2. Markdown 转换 | HTML → Markdown | markdownify, beautifulsoup4 | `turndownService` |
-| 3. 数据清洗 | 中文空格 / 换行 / 控制字符 | — | `simpleText`, `fastGPTSimpleText` |
-| 4. 文本分块 | 递归多策略分块 | — | `commonSplit`, `splitTextRecursively` |
-| 5. 图片索引 | 图片预览 + VLM 描述 | Pillow | `ImageIndexer` |
+Vue 3 + Vite 交互式 Demo，提供文档处理 5 步流水线的可视化操作界面，所有处理逻辑通过 API 调用后端完成。
+
+### 后端：knowledge-process-api
+
+Python FastAPI REST API，提供文档解析、Markdown 转换、数据清洗、文本分块、图片索引的 REST 接口。
+
+| 端点 | 功能 |
+|------|------|
+| `POST /api/parse` | 文档解析（PDF/DOCX/CSV/XLSX/PPTX/TXT） |
+| `POST /api/convert` | Markdown 转换 |
+| `POST /api/clean` | 数据清洗 |
+| `POST /api/chunk` | 文本分块 |
+| `POST /api/index-image` | 图片索引 |
+| `GET /api/health` | 健康检查 |
+
+Python 解析库与 FastGPT 后端一一对应：
+
+| 文件类型 | Python 库 | 对应 FastGPT 模块 |
+|----------|-----------|-------------------|
+| PDF | PyMuPDF | `readFileFn/pdf.ts` |
+| DOCX | mammoth | `readFileFn/docx.ts` |
+| CSV/XLSX | openpyxl | `readFileFn/csv.ts`, `readFileFn/xlsx.ts` |
+| PPTX | python-pptx | `readFileFn/pptx.ts` |
+| TXT | chardet (编码检测) | `readFileFn/text.ts` |
+| HTML→MD | markdownify, beautifulsoup4 | `turndownService` |
 
 分块算法完全复刻 FastGPT 的 `commonSplit` + `splitTextRecursively` 递归多级分块逻辑。
 
-### 环境要求
-
-- Python 3.10+
-- [uv](https://docs.astral.sh/uv/)
-
-### 运行
+### 本地运行
 
 ```bash
-cd demo
+# 1. 启动后端
+cd knowledge-process-api
 uv sync
-uv run streamlit run app.py
+uv run uvicorn app:app --reload --port 8000
+
+# 2. 启动前端（新终端）
+cd apps/knowledge-process-demo
+pnpm dev
+# 浏览器打开 http://localhost:3001
 ```
 
-浏览器打开 `http://localhost:8501`。
+### 前端技术
+
+- Vue 3 + Vite + vue-router（与 fastgpt-report 一致）
+- 所有文档处理通过 FastAPI 后端完成，前端仅负责 UI 展示
 
 ## 技术栈
 
@@ -81,7 +106,9 @@ uv run streamlit run app.py
 | 分析报告 | Vue 3, Vite, ECharts, vue-echarts, vue-router |
 | 文档解析 (JS) | pdfjs-dist, mammoth, xlsx (SheetJS), papaparse, turndown |
 | 文档解析 (Python) | PyMuPDF, mammoth, openpyxl, python-pptx, markdownify, chardet, Pillow |
-| 交互式 Demo | Streamlit |
+| 文档解析 (Python) | PyMuPDF, mammoth, openpyxl, python-pptx, markdownify, chardet, Pillow |
+| Demo 前端 | Vue 3, Vite, vue-router |
+| Demo 后端 | FastAPI, uvicorn |
 | 包管理 | pnpm (monorepo), uv (Python) |
 | 部署 | GitHub Pages + GitHub Actions |
 

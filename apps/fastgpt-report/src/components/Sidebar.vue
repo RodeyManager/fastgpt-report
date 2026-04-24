@@ -47,6 +47,5 @@ const navItems = [
   { path: '/schemas', num: '11', label: '数据表结构', icon: createIcon('<path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/>') },
   { path: '/dependencies', num: '12', label: '核心依赖包', icon: createIcon('<rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h10"/>') },
   { path: '/architecture-detail', num: '13', label: '项目架构图', icon: createIcon('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M10 6.5h4"/><path d="M10 17.5h4"/><path d="M6.5 10v4"/><path d="M17.5 10v4"/>') },
-  { path: '/demo', num: '14', label: 'Demo演示', icon: createIcon('<polygon points="5 3 19 12 5 21 5 3"/>') },
 ]
 </script>

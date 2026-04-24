@@ -3,7 +3,10 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter fastgpt-analysis-report dev",
-    "build": "pnpm --filter fastgpt-analysis-report build",
+    "dev:demo": "pnpm --filter knowledge-process-demo dev",
+    "build": "pnpm --filter fastgpt-analysis-report build && pnpm --filter knowledge-process-demo build",
+    "build:report": "pnpm --filter fastgpt-analysis-report build",
+    "build:demo": "pnpm --filter knowledge-process-demo build",
     "preview": "pnpm --filter fastgpt-analysis-report preview"
   }
 }
