@@ -95,22 +95,27 @@ pnpm dev
 
 ### 部署
 
-前端部署到 GitHub Pages，后端部署到 [Render](https://render.com)。
+前端部署到 GitHub Pages，后端部署到 Hugging Face Spaces。
 
 **后端（Hugging Face Spaces）：**
-1. 注册 [Hugging Face](https://huggingface.co) 账号
-2. 创建新 Space：选择 **Docker** SDK，Space name 如 `knowledge-process-api`
-3. 将 `knowledge-process-api/` 目录内容推送到 Space 仓库：
-   ```bash
-   git clone https://huggingface.co/spaces/<your-username>/knowledge-process-api
-   cp knowledge-process-api/* <your-username>/knowledge-process-api/
-   cd <your-username>/knowledge-process-api && git add . && git commit -m "init" && git push
-   ```
-4. 部署完成后获得 URL：`https://<your-username>-knowledge-process-api.hf.space`
+
+使用 `hf upload` CLI 推送（详见 [AGENTS.md](./AGENTS.md)）：
+
+```bash
+# 从项目根目录执行
+hf upload spaces/RodeyManager/knowledge-process-api knowledge-process-api/ \
+  --exclude ".venv" \
+  --exclude "__pycache__" \
+  --exclude "*.pyc" \
+  --exclude "uv.lock" \
+  --commit-message "描述信息"
+```
+
+部署地址：`https://rodeymanager-knowledge-process-api.hf.space`
 
 **前端（GitHub Pages）：**
 1. 在 GitHub 仓库 **Settings** → **Secrets and variables** → **Actions** → **Variables** 中添加：
-   - `VITE_API_BASE` = HF Spaces URL（如 `https://<your-username>-knowledge-process-api.hf.space`）
+   - `VITE_API_BASE` = `https://rodeymanager-knowledge-process-api.hf.space`
 2. 推送代码到 `main`，GitHub Actions 自动构建部署
 
 ### 前端技术
