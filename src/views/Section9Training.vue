@@ -24,22 +24,48 @@
     <!-- QA生成流程 -->
     <div class="card">
       <h3>QA生成流程</h3>
-      <div class="flow-steps">
-        <div class="flow-step">文本块</div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step highlight">LLM Prompt<br><small>Prompt_AgentQA</small></div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step">流式响应</div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step highlight">正则解析<br><small>Q\d+:(.*?)A\d+</small></div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step">问答对</div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step success">训练队列<br><small>chunk模式</small></div>
-      </div>
-      <div class="flow-fallback">
-        <span class="flow-arrow-down">↓ 解析失败</span>
-        <div class="flow-step warn">回退到直接分块</div>
+      <div class="qa-flow-wrapper">
+        <!-- 主流程 -->
+        <div class="qa-flow-main">
+          <div class="qa-node">
+            <div class="qa-node-label">文本块</div>
+            <div class="qa-node-sub">原始 Chunk</div>
+          </div>
+          <div class="qa-arrow">→</div>
+          <div class="qa-node qa-node-primary">
+            <div class="qa-node-label">LLM 生成</div>
+            <div class="qa-node-sub">Prompt_AgentQA<br/>temperature=0.3</div>
+          </div>
+          <div class="qa-arrow">→</div>
+          <div class="qa-node qa-node-primary">
+            <div class="qa-node-label">正则解析</div>
+            <div class="qa-node-sub">Q₁:/A₁: 格式提取</div>
+          </div>
+          <div class="qa-arrow">→</div>
+          <div class="qa-node qa-node-success">
+            <div class="qa-node-label">问答对</div>
+            <div class="qa-node-sub">最多 50 组 Q&amp;A</div>
+          </div>
+          <div class="qa-arrow">→</div>
+          <div class="qa-node qa-node-success">
+            <div class="qa-node-label">入队训练</div>
+            <div class="qa-node-sub">mode=chunk 向量化</div>
+          </div>
+        </div>
+        <!-- 失败回退分支 -->
+        <div class="qa-flow-fallback">
+          <div class="qa-branch-left">
+            <div class="qa-branch-label">✅ 解析成功</div>
+            <div class="qa-branch-desc">LLM 返回有效 Q&amp;A 对 → 走主流程</div>
+          </div>
+          <div class="qa-branch-divider"></div>
+          <div class="qa-branch-right">
+            <div class="qa-branch-label qa-branch-warn">⚠️ 解析失败（返回为空）</div>
+            <div class="qa-branch-desc">
+              回退策略：跳过 LLM 结果，直接将原始 Chunk 文本按 <code>text2Chunks()</code> 切分后以 <strong>chunk 模式</strong>重新入队
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -137,16 +163,108 @@ onBeforeUnmount(() => { chart?.dispose(); chart = null })
 .tag.agent { background: rgba(99,102,241,.15); color: #6366f1; }
 .tag.vector { background: rgba(16,185,129,.15); color: #10b981; }
 .tag.vlm { background: rgba(245,158,11,.15); color: #f59e0b; }
-.flow-steps { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.flow-step {
-  padding: 8px 12px; background: var(--bg-tertiary, #f1f5f9); border-radius: 8px;
-  font-size: 13px; text-align: center; white-space: nowrap;
+
+/* QA Flow */
+.qa-flow-wrapper {
+  background: rgba(15,23,42,0.5);
+  border: 1px solid rgba(99,102,241,0.15);
+  border-radius: 10px;
+  padding: 20px;
 }
-.flow-step.highlight { background: rgba(99,102,241,.12); border: 1px solid rgba(99,102,241,.3); }
-.flow-step.success { background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3); }
-.flow-step.warn { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: #dc2626; }
-.flow-arrow { color: var(--text-secondary, #94a3b8); font-weight: 700; }
-.flow-fallback { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
-.flow-arrow-down { color: var(--text-secondary, #94a3b8); font-size: 13px; }
+.qa-flow-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.qa-node {
+  padding: 10px 14px;
+  background: rgba(30,41,59,0.9);
+  border: 1px solid rgba(148,163,184,0.2);
+  border-radius: 8px;
+  text-align: center;
+  min-width: 80px;
+  color: #e2e8f0;
+}
+.qa-node-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+.qa-node-sub {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+.qa-node-primary {
+  background: rgba(99,102,241,0.12);
+  border-color: rgba(99,102,241,0.35);
+}
+.qa-node-primary .qa-node-label { color: #a5b4fc; }
+.qa-node-success {
+  background: rgba(16,185,129,0.1);
+  border-color: rgba(16,185,129,0.3);
+}
+.qa-node-success .qa-node-label { color: #6ee7b7; }
+.qa-arrow {
+  color: #64748b;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* Fallback section */
+.qa-flow-fallback {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0;
+  margin-top: 18px;
+  border-top: 1px solid rgba(148,163,184,0.1);
+  padding-top: 16px;
+  align-items: stretch;
+}
+.qa-branch-left, .qa-branch-right {
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+.qa-branch-left {
+  background: rgba(16,185,129,0.05);
+  border: 1px solid rgba(16,185,129,0.15);
+}
+.qa-branch-right {
+  background: rgba(245,158,11,0.05);
+  border: 1px solid rgba(245,158,11,0.15);
+}
+.qa-branch-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #10b981;
+  margin-bottom: 6px;
+}
+.qa-branch-warn {
+  color: #f59e0b;
+}
+.qa-branch-desc {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+.qa-branch-desc code {
+  background: rgba(99,102,241,0.15);
+  color: #a5b4fc;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.72rem;
+}
+.qa-branch-desc strong {
+  color: #e2e8f0;
+}
+.qa-branch-divider {
+  width: 1px;
+  background: rgba(148,163,184,0.15);
+  margin: 0 4px;
+}
+
 small { opacity: .7; font-size: 11px; }
 </style>
