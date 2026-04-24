@@ -14,7 +14,7 @@ fastgpt-report/
 
 ## Vue 分析报告
 
-基于 Vue 3 + Vite + ECharts 的 FastGPT 源码分析报告，涵盖 14 个章节：
+基于 Vue 3 + Vite + ECharts 的 FastGPT 源码分析报告，涵盖 13 个章节：
 
 1. 项目概览
 2. 架构设计
@@ -29,7 +29,6 @@ fastgpt-report/
 11. 数据库 Schema
 12. 依赖关系分析
 13. 架构细节
-14. 文档处理 Demo
 
 已部署至 GitHub Pages：
 - 分析报告：`https://rodeymanager.github.io/fastgpt-report/`
@@ -104,11 +103,8 @@ pnpm dev
 | 组件 | 技术 |
 |------|------|
 | 分析报告 | Vue 3, Vite, ECharts, vue-echarts, vue-router |
-| 文档解析 (JS) | pdfjs-dist, mammoth, xlsx (SheetJS), papaparse, turndown |
-| 文档解析 (Python) | PyMuPDF, mammoth, openpyxl, python-pptx, markdownify, chardet, Pillow |
-| 文档解析 (Python) | PyMuPDF, mammoth, openpyxl, python-pptx, markdownify, chardet, Pillow |
 | Demo 前端 | Vue 3, Vite, vue-router |
-| Demo 后端 | FastAPI, uvicorn |
+| Demo 后端 | FastAPI, uvicorn, PyMuPDF, mammoth, openpyxl, python-pptx, markdownify, chardet, Pillow |
 | 包管理 | pnpm (monorepo), uv (Python) |
 | 部署 | GitHub Pages + GitHub Actions |
 
