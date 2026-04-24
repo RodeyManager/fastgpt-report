@@ -486,7 +486,7 @@ async function runParse() {
   try {
     const formData = new FormData()
     formData.append('file', uploadedFile.value)
-    formData.append('method', parseMethod.value)
+    formData.append('method', 'auto')
 
     const data = await apiCall('/api/parse', { method: 'POST', body: formData })
 
