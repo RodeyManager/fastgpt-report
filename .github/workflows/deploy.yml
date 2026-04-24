@@ -36,7 +36,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm build
+        run: pnpm --filter fastgpt-analysis-report build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -44,7 +44,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: apps/fastgpt-report/dist
 
   deploy:
     environment:
