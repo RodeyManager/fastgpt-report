@@ -54,6 +54,45 @@
     </div>
 
     <template v-if="uploadedFile && !loading">
+      <div class="demo-stats-bar">
+        <div class="stat-item" v-if="activeStep === 0">
+          <span class="stat-value">{{ rawText.length }}</span>
+          <span class="stat-label">原始字符数</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 1">
+          <span class="stat-value">{{ rawText.length }}</span>
+          <span class="stat-label">转换前</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 1">
+          <span class="stat-value">{{ markdownText?.length || 0 }}</span>
+          <span class="stat-label">转换后</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 2">
+          <span class="stat-value">{{ textBeforeClean.length }}</span>
+          <span class="stat-label">清洗前</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 2">
+          <span class="stat-value">{{ cleanedText.length }}</span>
+          <span class="stat-label">清洗后</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 2">
+          <span class="stat-value">{{ textBeforeClean.length > 0 ? ((1 - cleanedText.length / textBeforeClean.length) * 100).toFixed(1) : 0 }}%</span>
+          <span class="stat-label">缩减率</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 3">
+          <span class="stat-value">{{ chunks.length }}</span>
+          <span class="stat-label">分块数量</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 3">
+          <span class="stat-value">{{ avgChunkSize }}</span>
+          <span class="stat-label">平均块大小</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 3">
+          <span class="stat-value">{{ cleanedText.length }}</span>
+          <span class="stat-label">总字符数</span>
+        </div>
+      </div>
+
       <div class="demo-layout">
         <div class="demo-result-panel">
           <div class="result-label">{{ steps[activeStep]?.label }} 结果</div>
@@ -258,45 +297,6 @@
               <div>• 生成可检索的语义向量</div>
             </div>
           </template>
-        </div>
-      </div>
-
-      <div class="demo-stats-bar">
-        <div class="stat-item" v-if="activeStep === 0">
-          <span class="stat-value">{{ rawText.length }}</span>
-          <span class="stat-label">原始字符数</span>
-        </div>
-        <div class="stat-item" v-if="activeStep === 1">
-          <span class="stat-value">{{ rawText.length }}</span>
-          <span class="stat-label">转换前</span>
-        </div>
-        <div class="stat-item" v-if="activeStep === 1">
-          <span class="stat-value">{{ markdownText?.length || 0 }}</span>
-          <span class="stat-label">转换后</span>
-        </div>
-        <div class="stat-item" v-if="activeStep === 2">
-          <span class="stat-value">{{ textBeforeClean.length }}</span>
-          <span class="stat-label">清洗前</span>
-        </div>
-        <div class="stat-item" v-if="activeStep === 2">
-          <span class="stat-value">{{ cleanedText.length }}</span>
-          <span class="stat-label">清洗后</span>
-        </div>
-        <div class="stat-item" v-if="activeStep === 2">
-          <span class="stat-value">{{ textBeforeClean.length > 0 ? ((1 - cleanedText.length / textBeforeClean.length) * 100).toFixed(1) : 0 }}%</span>
-          <span class="stat-label">缩减率</span>
-        </div>
-        <div class="stat-item" v-if="activeStep === 3">
-          <span class="stat-value">{{ chunks.length }}</span>
-          <span class="stat-label">分块数量</span>
-        </div>
-        <div class="stat-item" v-if="activeStep === 3">
-          <span class="stat-value">{{ avgChunkSize }}</span>
-          <span class="stat-label">平均块大小</span>
-        </div>
-        <div class="stat-item" v-if="activeStep === 3">
-          <span class="stat-value">{{ cleanedText.length }}</span>
-          <span class="stat-label">总字符数</span>
         </div>
       </div>
     </template>
