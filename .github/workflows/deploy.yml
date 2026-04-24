@@ -40,6 +40,8 @@ jobs:
 
       - name: Build knowledge-process-demo
         run: pnpm --filter knowledge-process-demo build
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
 
       - name: Merge dist directories
         run: |

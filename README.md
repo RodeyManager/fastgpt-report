@@ -93,6 +93,24 @@ pnpm dev
 # 浏览器打开 http://localhost:3001
 ```
 
+### 部署
+
+前端部署到 GitHub Pages，后端部署到 [Render](https://render.com)。
+
+**后端（Render）：**
+1. 注册 Render 账号，连接 GitHub 仓库
+2. 使用仓库根目录的 `render.yaml` 创建服务（Blueprint 方式），或手动创建 Web Service：
+   - Root Directory: `knowledge-process-api`
+   - Runtime: Docker
+   - Plan: Free
+3. 部署完成后获得 URL，如 `https://knowledge-process-api-xxxx.onrender.com`
+
+**前端（GitHub Pages）：**
+1. 在 GitHub 仓库 Settings → Variables and secrets → Actions 中添加变量：
+   - `VITE_API_BASE` = Render 后端 URL（如 `https://knowledge-process-api-xxxx.onrender.com`）
+2. 推送代码到 `main` 分支，GitHub Actions 自动构建部署
+3. Demo 访问地址：`https://rodeymanager.github.io/fastgpt-report/demo/`
+
 ### 前端技术
 
 - Vue 3 + Vite + vue-router（与 fastgpt-report 一致）
@@ -106,7 +124,7 @@ pnpm dev
 | Demo 前端 | Vue 3, Vite, vue-router |
 | Demo 后端 | FastAPI, uvicorn, PyMuPDF, mammoth, openpyxl, python-pptx, markdownify, chardet, Pillow |
 | 包管理 | pnpm (monorepo), uv (Python) |
-| 部署 | GitHub Pages + GitHub Actions |
+| 部署 | GitHub Pages (前端) + Render (后端) + GitHub Actions |
 
 ## License
 
