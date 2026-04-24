@@ -97,19 +97,21 @@ pnpm dev
 
 前端部署到 GitHub Pages，后端部署到 [Render](https://render.com)。
 
-**后端（Render）：**
-1. 注册 Render 账号，连接 GitHub 仓库
-2. 使用仓库根目录的 `render.yaml` 创建服务（Blueprint 方式），或手动创建 Web Service：
-   - Root Directory: `knowledge-process-api`
-   - Runtime: Docker
-   - Plan: Free
-3. 部署完成后获得 URL，如 `https://knowledge-process-api-xxxx.onrender.com`
+**后端（Hugging Face Spaces）：**
+1. 注册 [Hugging Face](https://huggingface.co) 账号
+2. 创建新 Space：选择 **Docker** SDK，Space name 如 `knowledge-process-api`
+3. 将 `knowledge-process-api/` 目录内容推送到 Space 仓库：
+   ```bash
+   git clone https://huggingface.co/spaces/<your-username>/knowledge-process-api
+   cp knowledge-process-api/* <your-username>/knowledge-process-api/
+   cd <your-username>/knowledge-process-api && git add . && git commit -m "init" && git push
+   ```
+4. 部署完成后获得 URL：`https://<your-username>-knowledge-process-api.hf.space`
 
 **前端（GitHub Pages）：**
-1. 在 GitHub 仓库 Settings → Variables and secrets → Actions 中添加变量：
-   - `VITE_API_BASE` = Render 后端 URL（如 `https://knowledge-process-api-xxxx.onrender.com`）
-2. 推送代码到 `main` 分支，GitHub Actions 自动构建部署
-3. Demo 访问地址：`https://rodeymanager.github.io/fastgpt-report/demo/`
+1. 在 GitHub 仓库 **Settings** → **Secrets and variables** → **Actions** → **Variables** 中添加：
+   - `VITE_API_BASE` = HF Spaces URL（如 `https://<your-username>-knowledge-process-api.hf.space`）
+2. 推送代码到 `main`，GitHub Actions 自动构建部署
 
 ### 前端技术
 
@@ -124,7 +126,7 @@ pnpm dev
 | Demo 前端 | Vue 3, Vite, vue-router |
 | Demo 后端 | FastAPI, uvicorn, PyMuPDF, mammoth, openpyxl, python-pptx, markdownify, chardet, Pillow |
 | 包管理 | pnpm (monorepo), uv (Python) |
-| 部署 | GitHub Pages (前端) + Render (后端) + GitHub Actions |
+| 部署 | GitHub Pages (前端) + Hugging Face Spaces (后端) + GitHub Actions |
 
 ## License
 
