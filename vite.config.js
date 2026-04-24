@@ -9,7 +9,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
-  base: './',
+  base: '/fastgpt-report/',
   optimizeDeps: {
     include: ['pdfjs-dist', 'mammoth', 'papaparse', 'xlsx', 'turndown', 'joplin-turndown-plugin-gfm']
   },
