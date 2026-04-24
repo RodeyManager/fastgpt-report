@@ -1021,6 +1021,7 @@ watch(parseMethod, async () => {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 .stat-item {
