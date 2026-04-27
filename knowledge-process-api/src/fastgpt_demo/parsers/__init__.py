@@ -1,4 +1,4 @@
-"""Document parsers for FastGPT demo — routes by file extension."""
+"""Document parsers for FastGPT demo — routes by file extension and engine."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from typing import Callable
 from ._types import ParseResult
 from .csv_parser import parse as parse_csv
 from .docx_parser import parse as parse_docx
+from .mineru_parser import parse as parse_mineru
+from .mineru_parser import SUPPORTED_MINERU_EXTS
 from .pdf_parser import parse as parse_pdf
 from .pptx_parser import parse as parse_pptx
 from .text_parser import parse as parse_text
@@ -30,11 +32,21 @@ def parse_file(
     buffer: bytes,
     filename: str,
     method: str = "auto",
+    engine: str = "fastgpt",
 ) -> ParseResult:
-    """Dispatch *buffer* to the correct parser based on *filename* extension."""
+    """Dispatch *buffer* to the correct parser based on *engine* and *filename* extension."""
 
     ext = PurePosixPath(filename).suffix.lower()
 
+    if engine == "mineru":
+        if ext not in SUPPORTED_MINERU_EXTS:
+            raise ValueError(
+                f"MinerU does not support {ext} files. "
+                f"Supported: {', '.join(sorted(SUPPORTED_MINERU_EXTS))}"
+            )
+        return parse_mineru(buffer, filename)
+
+    # fastgpt (default) — existing logic unchanged
     if method == "auto":
         parser_key = _EXTENSION_MAP.get(ext)
         if parser_key is None:

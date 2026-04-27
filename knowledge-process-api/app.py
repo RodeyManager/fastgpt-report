@@ -128,11 +128,12 @@ async def health() -> dict[str, str]:
 async def parse(
     file: UploadFile = File(...),
     method: str = Form("auto"),
+    engine: str = Form("fastgpt"),
 ):
     """Parse an uploaded document and extract raw text, formatted text, etc."""
     try:
         buffer = await file.read()
-        result: ParseResult = parse_file(buffer, file.filename or "unknown.txt", method)
+        result: ParseResult = parse_file(buffer, file.filename or "unknown.txt", method, engine)
         return ParseResponse(
             raw_text=result.raw_text,
             format_text=result.format_text,

@@ -8,10 +8,10 @@
 
 ## Deployment Targets
 
-| Component | Target | URL |
-|---|---|---|
-| 前端（报告 + Demo） | GitHub Pages | `https://rodeymanager.github.io/fastgpt-report/` |
-| 后端 API | Hugging Face Spaces | `https://huggingface.co/spaces/RodeyManager/knowledge-process-api` |
+| Component           | Target              | URL                                                                |
+| ------------------- | ------------------- | ------------------------------------------------------------------ |
+| 前端（报告 + Demo） | GitHub Pages        | `https://rodeymanager.github.io/fastgpt-report/`                   |
+| 后端 API            | Hugging Face Spaces | `https://huggingface.co/spaces/RodeyManager/knowledge-process-api` |
 
 ## Hugging Face Spaces 部署规范
 
@@ -29,12 +29,12 @@ hf upload spaces/RodeyManager/knowledge-process-api knowledge-process-api/ \
 
 ### 必须排除的文件
 
-| 目录/文件 | 原因 |
-|---|---|
-| `.venv/` | Python 虚拟环境，Docker 构建时由 `uv sync` 重新生成 |
-| `__pycache__/` | 编译缓存 |
-| `*.pyc` | 字节码缓存 |
-| `uv.lock` | 锁文件，HF 构建时会重新生成 |
+| 目录/文件      | 原因                                                |
+| -------------- | --------------------------------------------------- |
+| `.venv/`       | Python 虚拟环境，Docker 构建时由 `uv sync` 重新生成 |
+| `__pycache__/` | 编译缓存                                            |
+| `*.pyc`        | 字节码缓存                                          |
+| `uv.lock`      | 锁文件，HF 构建时会重新生成                         |
 
 > ⚠️ `hf upload` **不会**自动读取 `.gitignore`，必须通过 `--exclude` 显式排除。
 
@@ -44,15 +44,15 @@ hf upload spaces/RodeyManager/knowledge-process-api knowledge-process-api/ \
 
 `method` 参数仅接受以下值：
 
-| 值 | 说明 |
-|---|---|
+| 值     | 说明                                 |
+| ------ | ------------------------------------ |
 | `auto` | 根据文件扩展名自动选择解析器（推荐） |
-| `pdf` | PDF 解析（PyMuPDF） |
-| `docx` | DOCX 解析（mammoth） |
-| `csv` | CSV 解析 |
-| `xlsx` | XLSX 解析（openpyxl） |
-| `pptx` | PPTX 解析（python-pptx） |
-| `text` | 纯文本解析（chardet 编码检测） |
+| `pdf`  | PDF 解析（PyMuPDF）                  |
+| `docx` | DOCX 解析（mammoth）                 |
+| `csv`  | CSV 解析                             |
+| `xlsx` | XLSX 解析（openpyxl）                |
+| `pptx` | PPTX 解析（python-pptx）             |
+| `text` | 纯文本解析（chardet 编码检测）       |
 
 前端 `parseMethod` 仅用于控制 UI 展示（HTML 预览 vs 纯文本），**API 调用统一使用 `method=auto`**。
 
