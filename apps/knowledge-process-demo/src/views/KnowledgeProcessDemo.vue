@@ -99,8 +99,22 @@
 
           <!-- Step 0: 文档解析 -->
           <div v-if="activeStep === 0">
-            <div v-if="parsedResult" class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="parsedResult"></div>
-            <div v-else class="empty-state">点击右侧「开始解析」按钮进行文档解析</div>
+            <div v-if="hasMultipleResults" class="compare-view">
+              <div class="compare-column">
+                <div class="compare-label">FastGPT 默认</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.fastgpt?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.fastgpt?.raw_text || '').length }} 字符</div>
+              </div>
+              <div class="compare-column">
+                <div class="compare-label">MinerU</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.mineru?.raw_text || '').length }} 字符</div>
+              </div>
+            </div>
+            <template v-else>
+              <div v-if="parsedResult" class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="parsedResult"></div>
+              <div v-else class="empty-state">点击右侧「开始解析」按钮进行文档解析</div>
+            </template>
           </div>
 
           <!-- Step 1: Markdown转换 -->
@@ -182,6 +196,15 @@
           <!-- Step 0 Options: 文档解析 -->
           <template v-if="activeStep === 0">
             <div class="option-title">解析选项</div>
+            <div class="demo-option-item">
+              <span>解析引擎：</span>
+              <select v-model="selectedEngine">
+                <option v-for="e in engines" :key="e.value" :value="e.value">{{ e.label }}</option>
+              </select>
+            </div>
+            <div v-if="!isMineruAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
+              MinerU 仅支持 PDF/DOCX/PPTX/图片格式
+            </div>
             <div class="demo-option-item">
               <span>解析方式：</span>
               <select v-model="parseMethod">
@@ -358,6 +381,27 @@ const isImageFile = computed(() => {
   return fileInfo.value ? IMAGE_EXTS.includes(fileInfo.value.ext) : false
 })
 
+const selectedEngine = ref('fastgpt')
+const engineResults = ref({})
+const MINERU_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp']
+
+const isMineruAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return MINERU_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
+const engines = computed(() => {
+  const list = [{ value: 'fastgpt', label: 'FastGPT 默认' }]
+  if (isMineruAvailable.value) {
+    list.push({ value: 'mineru', label: 'MinerU' })
+  }
+  return list
+})
+
+const hasMultipleResults = computed(() => {
+  return Object.keys(engineResults.value).filter(k => engineResults.value[k]).length > 1
+})
+
 const parseMethods = computed(() => {
   if (!fileInfo.value) return [{ value: 'text', label: '纯文本' }]
   const ext = fileInfo.value.ext
@@ -454,6 +498,8 @@ function processFile(file) {
   sheetNames.value = []
   selectedSheet.value = null
   errorMsg.value = ''
+  engineResults.value = {}
+  selectedEngine.value = 'fastgpt'
 
   if (fileInfo.value.ext === 'xlsx' || fileInfo.value.ext === 'xls') {
     parseMethod.value = 'table'
@@ -487,6 +533,7 @@ async function runParse() {
     const formData = new FormData()
     formData.append('file', uploadedFile.value)
     formData.append('method', 'auto')
+    formData.append('engine', selectedEngine.value)
 
     const data = await apiCall('/api/parse', { method: 'POST', body: formData })
 
@@ -494,6 +541,8 @@ async function runParse() {
     formatText.value = data.format_text || ''
     parsedResult.value = data.html_preview || ''
     sheetNames.value = data.sheet_names || []
+
+    engineResults.value[selectedEngine.value] = data
 
     if (sheetNames.value.length > 0 && !selectedSheet.value) {
       selectedSheet.value = sheetNames.value[0]
@@ -773,6 +822,37 @@ watch(parseMethod, async () => {
   display: flex;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.compare-view {
+  display: flex;
+  gap: 16px;
+}
+
+.compare-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.compare-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.compare-stat {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .compare-view { flex-direction: column; }
 }
 
 .demo-result-panel {
