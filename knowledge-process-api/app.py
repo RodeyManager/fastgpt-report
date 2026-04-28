@@ -30,7 +30,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from fastgpt_demo.parsers import ParseResult, parse_file  # noqa: E402
-from fastgpt_demo.converters import convert_to_markdown  # noqa: E402
+from fastgpt_demo.converters import convert_to_markdown, convert_to_markdown_multi  # noqa: E402
 from fastgpt_demo.cleaners import clean_text  # noqa: E402
 from fastgpt_demo.chunkers import split_text_2_chunks  # noqa: E402
 from fastgpt_demo.indexers import ImageIndexer  # noqa: E402
@@ -171,10 +171,12 @@ async def parse(
 
 @app.post("/api/convert", response_model=ConvertResponse)
 async def convert(req: ConvertRequest):
-    """Convert raw text to Markdown based on file extension."""
+    """Convert raw text to Markdown using selected tools."""
     try:
-        md_text, note = convert_to_markdown(req.raw_text, req.format_text, req.file_ext)
-        return ConvertResponse(markdown=md_text, note=note)
+        results = convert_to_markdown_multi(
+            req.raw_text, req.format_text, req.file_ext, req.tools
+        )
+        return ConvertResponse(results=[ToolResult(**r) for r in results])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Convert failed: {exc}") from exc
 
