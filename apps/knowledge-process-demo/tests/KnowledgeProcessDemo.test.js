@@ -166,4 +166,46 @@ describe('KnowledgeProcessDemo', () => {
     expect(Object.keys(wrapper.vm.engineResults).length).toBe(0)
     expect(wrapper.vm.selectedEngine).toBe('fastgpt')
   })
+
+  // --- Markdown Tool Selector Tests ---
+  it('selectedMdTools defaults to markdownify', () => {
+    const wrapper = createWrapper()
+    expect(wrapper.vm.selectedMdTools).toEqual(['markdownify'])
+  })
+
+  it('shows tool selector with two checkboxes in step 1', async () => {
+    const wrapper = createWrapper()
+    wrapper.vm.uploadedFile = createFile('test.pdf')
+    wrapper.vm.activeStep = 1
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const toolSection = wrapper.find('[data-testid="md-tool-selector"]')
+    expect(toolSection.exists()).toBe(true)
+    const toolCheckboxes = toolSection.findAll('input[type="checkbox"]')
+    expect(toolCheckboxes.length).toBe(2)
+  })
+
+  it('can toggle markitdown tool on', async () => {
+    const wrapper = createWrapper()
+    wrapper.vm.toggleMdTool('markitdown')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.selectedMdTools).toEqual(['markdownify', 'markitdown'])
+  })
+
+  it('cannot uncheck last tool', async () => {
+    const wrapper = createWrapper()
+    expect(wrapper.vm.selectedMdTools).toEqual(['markdownify'])
+    wrapper.vm.toggleMdTool('markdownify')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.selectedMdTools.length).toBeGreaterThanOrEqual(1)
+    expect(wrapper.vm.selectedMdTools).toEqual(['markdownify'])
+  })
+
+  it('cannot select more than 2 tools', async () => {
+    const wrapper = createWrapper()
+    wrapper.vm.toggleMdTool('markitdown')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.selectedMdTools.length).toBe(2)
+  })
 })

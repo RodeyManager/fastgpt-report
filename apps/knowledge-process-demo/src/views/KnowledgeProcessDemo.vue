@@ -233,6 +233,14 @@
               <div style="font-size:0.82rem;color:var(--text-secondary)">转换方式: <code style="color:var(--accent-green)">{{ mdConversionMethod }}</code></div>
               <div style="font-size:0.82rem;color:var(--text-secondary)">输出格式: <code :style="{ color: isMarkdownOutput ? 'var(--accent-green)' : 'var(--accent-orange)' }">{{ isMarkdownOutput ? 'Markdown' : '纯文本(无MD转换)' }}</code></div>
             </div>
+            <div data-testid="md-tool-selector" style="margin-top:8px">
+              <div class="option-title">转换工具</div>
+              <div v-for="tool in mdTools" :key="tool.value" class="demo-option-item">
+                <input type="checkbox" :checked="selectedMdTools.includes(tool.value)" @change="toggleMdTool(tool.value)" />
+                <span>{{ tool.label }}</span>
+              </div>
+              <div style="font-size:0.75rem;color:var(--text-muted)">可选择 1-2 个工具进行对比</div>
+            </div>
             <button class="demo-action-btn" @click="runMarkdownConvert">
               <span>▶</span> 转换为 Markdown
             </button>
@@ -385,6 +393,23 @@ const selectedEngine = ref('fastgpt')
 const engineResults = ref({})
 const MINERU_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp']
 
+const mdTools = [
+  { value: 'markdownify', label: 'Markdownify' },
+  { value: 'markitdown', label: 'MarkItDown' },
+]
+const selectedMdTools = ref(['markdownify'])
+
+function toggleMdTool(toolValue) {
+  const idx = selectedMdTools.value.indexOf(toolValue)
+  if (idx >= 0) {
+    if (selectedMdTools.value.length <= 1) return
+    selectedMdTools.value.splice(idx, 1)
+  } else {
+    if (selectedMdTools.value.length >= 2) return
+    selectedMdTools.value.push(toolValue)
+  }
+}
+
 const isMineruAvailable = computed(() => {
   if (!fileInfo.value) return false
   return MINERU_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
@@ -490,6 +515,7 @@ function processFile(file) {
   textBeforeClean.value = ''
   markdownText.value = null
   mdConversionNote.value = ''
+  selectedMdTools.value = ['markdownify']
   formatText.value = ''
   parsedResult.value = ''
   rawText.value = ''
