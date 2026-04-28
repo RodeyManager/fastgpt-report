@@ -20,7 +20,7 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ---------------------------------------------------------------------------
 # Ensure the local ``src`` package is importable
@@ -58,15 +58,37 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 
+ALLOWED_MD_TOOLS = ["markdownify", "markitdown"]
+
+
+class ToolResult(BaseModel):
+    tool: str
+    markdown: str
+    note: str
+    duration_ms: float
+
+
 class ConvertRequest(BaseModel):
     raw_text: str
     format_text: str
     file_ext: str
+    tools: list[str] = ["markdownify"]
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError("At least one tool must be selected")
+        if len(v) > 2:
+            raise ValueError("Maximum 2 tools can be selected")
+        for tool in v:
+            if tool not in ALLOWED_MD_TOOLS:
+                raise ValueError(f"Unknown tool: {tool}. Allowed: {ALLOWED_MD_TOOLS}")
+        return v
 
 
 class ConvertResponse(BaseModel):
-    markdown: str
-    note: str
+    results: list[ToolResult]
 
 
 class CleanOptions(BaseModel):
