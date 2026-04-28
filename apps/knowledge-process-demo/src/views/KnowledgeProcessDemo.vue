@@ -119,7 +119,33 @@
 
           <!-- Step 1: Markdown转换 -->
           <div v-if="activeStep === 1">
-            <div v-if="markdownText !== null" style="display:flex;flex-direction:column;gap:16px">
+            <div v-if="convertResults.length > 0" style="display:flex;flex-direction:column;gap:16px">
+              <div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px">原始解析输出 ({{ rawText.length }} 字符)</div>
+                <div class="result-content demo-fulltext-box" v-if="isDocxHtmlMode" v-html="rawText"></div>
+                <div class="result-content demo-fulltext-box" v-else>{{ rawText }}</div>
+              </div>
+              <div v-if="convertResults.length === 2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div v-for="r in convertResults" :key="r.tool">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <span style="font-size:0.82rem;font-weight:600;color:var(--accent-green)">{{ r.tool === 'markdownify' ? 'Markdownify' : 'MarkItDown' }}</span>
+                    <span style="font-size:0.72rem;color:var(--text-muted)">{{ r.duration_ms.toFixed(1) }}ms</span>
+                  </div>
+                  <div class="result-content demo-fulltext-box" style="background:rgba(0,255,136,0.04);border-color:rgba(0,255,136,0.15);font-size:0.85rem;max-height:400px;overflow-y:auto">{{ r.markdown }}</div>
+                </div>
+              </div>
+              <div v-else>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <span style="font-size:0.75rem;color:var(--accent-green)">Markdown 转换结果 ({{ markdownText.length }} 字符)</span>
+                  <span style="font-size:0.72rem;color:var(--text-muted)" v-if="convertResults[0]">{{ convertResults[0].duration_ms.toFixed(1) }}ms</span>
+                </div>
+                <div class="result-content demo-fulltext-box" style="background:rgba(0,255,136,0.04);border-color:rgba(0,255,136,0.15)">{{ markdownText }}</div>
+              </div>
+              <div v-if="mdConversionNote" style="font-size:0.78rem;color:var(--text-muted);padding:8px 12px;background:rgba(99,102,241,0.05);border-radius:6px;border-left:3px solid var(--accent-blue)">
+                {{ mdConversionNote }}
+              </div>
+            </div>
+            <div v-else-if="markdownText !== null" style="display:flex;flex-direction:column;gap:16px">
               <div>
                 <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px">原始解析输出 ({{ rawText.length }} 字符)</div>
                 <div class="result-content demo-fulltext-box" v-if="isDocxHtmlMode" v-html="rawText"></div>
@@ -128,9 +154,6 @@
               <div>
                 <div style="font-size:0.75rem;color:var(--accent-green);margin-bottom:6px">Markdown 转换结果 ({{ markdownText.length }} 字符)</div>
                 <div class="result-content demo-fulltext-box" style="background:rgba(0,255,136,0.04);border-color:rgba(0,255,136,0.15)">{{ markdownText }}</div>
-              </div>
-              <div v-if="mdConversionNote" style="font-size:0.78rem;color:var(--text-muted);padding:8px 12px;background:rgba(99,102,241,0.05);border-radius:6px;border-left:3px solid var(--accent-blue)">
-                {{ mdConversionNote }}
               </div>
             </div>
             <div v-else class="empty-state">请先完成文档解析，再点击「转换为Markdown」</div>
@@ -346,6 +369,7 @@ const rawText = ref('')
 const formatText = ref('')
 const parsedResult = ref('')
 const markdownText = ref(null)
+const convertResults = ref([])
 const mdConversionNote = ref('')
 const cleanedText = ref('')
 const textBeforeClean = ref('')
@@ -514,6 +538,7 @@ function processFile(file) {
   cleanedText.value = ''
   textBeforeClean.value = ''
   markdownText.value = null
+  convertResults.value = []
   mdConversionNote.value = ''
   selectedMdTools.value = ['markdownify']
   formatText.value = ''
@@ -596,14 +621,21 @@ async function runMarkdownConvert() {
       body: JSON.stringify({
         raw_text: rawText.value,
         format_text: formatText.value,
-        file_ext: fileInfo.value.ext
+        file_ext: fileInfo.value.ext,
+        tools: selectedMdTools.value
       })
     })
-    markdownText.value = data.markdown || ''
-    mdConversionNote.value = data.note || ''
+    convertResults.value = data.results || []
+    markdownText.value = convertResults.value.length > 0
+      ? convertResults.value[0].markdown
+      : ''
+    mdConversionNote.value = convertResults.value.length > 0
+      ? convertResults.value[0].note
+      : ''
   } catch (err) {
     markdownText.value = ''
     mdConversionNote.value = '转换失败: ' + err.message
+    convertResults.value = []
     errorMsg.value = err.message
   }
   loading.value = false

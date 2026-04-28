@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import KnowledgeProcessDemo from '../src/views/KnowledgeProcessDemo.vue'
 
 function createWrapper() {
@@ -207,5 +207,102 @@ describe('KnowledgeProcessDemo', () => {
     wrapper.vm.toggleMdTool('markitdown')
     await wrapper.vm.$nextTick()
     expect(wrapper.vm.selectedMdTools.length).toBe(2)
+  })
+
+  // --- convertResults & side-by-side tests ---
+  it('convertResults defaults to empty array', () => {
+    const wrapper = createWrapper()
+    expect(wrapper.vm.convertResults).toEqual([])
+  })
+
+  it('runMarkdownConvert passes tools in request body', async () => {
+    const wrapper = createWrapper()
+    wrapper.vm.rawText = '<h1>Hi</h1>'
+    wrapper.vm.formatText = ''
+    wrapper.vm.fileInfo = { ext: 'html' }
+    wrapper.vm.selectedMdTools = ['markdownify', 'markitdown']
+
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          results: [
+            { tool: 'markdownify', markdown: '# Hi', note: 'ok', duration_ms: 5.0 },
+            { tool: 'markitdown', markdown: '# Hi\n', note: 'ok', duration_ms: 8.0 },
+          ]
+        })
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await wrapper.vm.runMarkdownConvert()
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.tools).toEqual(['markdownify', 'markitdown'])
+    expect(wrapper.vm.convertResults.length).toBe(2)
+    expect(wrapper.vm.markdownText).toBe('# Hi')
+
+    vi.restoreAllMocks()
+  })
+
+  it('markdownText is set to first result for cleaning compat', async () => {
+    const wrapper = createWrapper()
+    wrapper.vm.rawText = '<h1>Hi</h1>'
+    wrapper.vm.formatText = ''
+    wrapper.vm.fileInfo = { ext: 'html' }
+
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          results: [
+            { tool: 'markdownify', markdown: '# Result1', note: 'ok', duration_ms: 5.0 },
+            { tool: 'markitdown', markdown: '# Result2', note: 'ok', duration_ms: 8.0 },
+          ]
+        })
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await wrapper.vm.runMarkdownConvert()
+    expect(wrapper.vm.markdownText).toBe('# Result1')
+    expect(wrapper.vm.convertResults.length).toBe(2)
+
+    vi.restoreAllMocks()
+  })
+
+  it('shows side-by-side grid when 2 results', async () => {
+    const wrapper = createWrapper()
+    wrapper.vm.uploadedFile = createFile('test.docx')
+    wrapper.vm.activeStep = 1
+    wrapper.vm.rawText = '<h1>Hi</h1>'
+    wrapper.vm.convertResults = [
+      { tool: 'markdownify', markdown: '# A', note: '', duration_ms: 5.0 },
+      { tool: 'markitdown', markdown: '# B', note: '', duration_ms: 8.0 },
+    ]
+    wrapper.vm.markdownText = '# A'
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const html = wrapper.find('.demo-result-panel').html()
+    expect(html).toContain('grid-template-columns')
+    expect(html).toContain('Markdownify')
+    expect(html).toContain('MarkItDown')
+  })
+
+  it('shows single result view when 1 result', async () => {
+    const wrapper = createWrapper()
+    wrapper.vm.uploadedFile = createFile('test.docx')
+    wrapper.vm.activeStep = 1
+    wrapper.vm.rawText = '<h1>Hi</h1>'
+    wrapper.vm.convertResults = [
+      { tool: 'markdownify', markdown: '# A', note: 'ok', duration_ms: 5.0 },
+    ]
+    wrapper.vm.markdownText = '# A'
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const html = wrapper.find('.demo-result-panel').html()
+    expect(html).not.toContain('grid-template-columns')
+    expect(wrapper.text()).toContain('Markdown 转换结果')
   })
 })
