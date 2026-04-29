@@ -8,6 +8,7 @@ FastGPT's JavaScript behavior exactly.
 from __future__ import annotations
 
 import re
+import time
 
 from markdownify import MarkdownConverter, markdownify as md
 
@@ -196,7 +197,6 @@ def html_to_markdown(html: str) -> str:
     """
     md_text = md(
         html,
-        convert=["del", "s", "video", "source", "audio"],
         heading_style="atx",
         bullets="-",
         strip=["i", "script", "iframe", "style"],
@@ -244,3 +244,53 @@ def convert_to_markdown(
         return result, "Converted HTML→Markdown"
 
     return raw_text, "No conversion applied"
+
+
+def convert_to_markdown_multi(
+    raw_text: str,
+    format_text: str,
+    file_ext: str,
+    tools: list[str] | None = None,
+) -> list[dict]:
+    if tools is None:
+        tools = ["markdownify"]
+
+    ext = file_ext.lower().lstrip(".")
+    results = []
+
+    for tool_name in tools:
+        start = time.perf_counter()
+
+        if f".{ext}" in _DOC_EXTENSIONS or ext == "html":
+            if tool_name == "markdownify":
+                md_text = html_to_markdown(raw_text)
+            elif tool_name == "markitdown":
+                from .markitdown_converter import html_to_markdown_markitdown
+                md_text = html_to_markdown_markitdown(raw_text)
+            else:
+                md_text = raw_text
+
+            if f".{ext}" in _DOC_EXTENSIONS:
+                note = f"Converted from DOCX/DOC via HTML→Markdown using {tool_name}"
+            else:
+                note = f"Converted HTML→Markdown using {tool_name}"
+        elif f".{ext}" in _TABLE_EXTENSIONS:
+            md_text = format_text
+            note = "Used pre-formatted table markdown"
+        elif ext == "md":
+            md_text = raw_text
+            note = "Already markdown"
+        else:
+            md_text = raw_text
+            note = "No conversion applied"
+
+        elapsed = (time.perf_counter() - start) * 1000
+
+        results.append({
+            "tool": tool_name,
+            "markdown": md_text,
+            "note": note,
+            "duration_ms": round(elapsed, 2),
+        })
+
+    return results

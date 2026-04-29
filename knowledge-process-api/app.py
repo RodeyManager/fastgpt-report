@@ -1,7 +1,7 @@
 """Knowledge Process API — FastAPI REST server for document processing pipeline.
 
 Endpoints:
-  POST /api/parse       — Parse uploaded files (PDF, DOCX, CSV, XLSX, PPTX, TXT, MD)
+  POST /api/parse       — Parse uploaded files (PDF, DOCX, CSV, XLSX, PPTX, TXT, MD, HTML)
   POST /api/convert     — Convert raw text to Markdown
   POST /api/clean       — Clean text with configurable options
   POST /api/chunk       — Split text into chunks
@@ -20,7 +20,7 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ---------------------------------------------------------------------------
 # Ensure the local ``src`` package is importable
@@ -30,7 +30,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from fastgpt_demo.parsers import ParseResult, parse_file  # noqa: E402
-from fastgpt_demo.converters import convert_to_markdown  # noqa: E402
+from fastgpt_demo.converters import convert_to_markdown, convert_to_markdown_multi  # noqa: E402
 from fastgpt_demo.cleaners import clean_text  # noqa: E402
 from fastgpt_demo.chunkers import split_text_2_chunks  # noqa: E402
 from fastgpt_demo.indexers import ImageIndexer  # noqa: E402
@@ -58,15 +58,37 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 
+ALLOWED_MD_TOOLS = ["markdownify", "markitdown"]
+
+
+class ToolResult(BaseModel):
+    tool: str
+    markdown: str
+    note: str
+    duration_ms: float
+
+
 class ConvertRequest(BaseModel):
     raw_text: str
     format_text: str
     file_ext: str
+    tools: list[str] = ["markitdown"]
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError("At least one tool must be selected")
+        if len(v) > 2:
+            raise ValueError("Maximum 2 tools can be selected")
+        for tool in v:
+            if tool not in ALLOWED_MD_TOOLS:
+                raise ValueError(f"Unknown tool: {tool}. Allowed: {ALLOWED_MD_TOOLS}")
+        return v
 
 
 class ConvertResponse(BaseModel):
-    markdown: str
-    note: str
+    results: list[ToolResult]
 
 
 class CleanOptions(BaseModel):
@@ -149,10 +171,12 @@ async def parse(
 
 @app.post("/api/convert", response_model=ConvertResponse)
 async def convert(req: ConvertRequest):
-    """Convert raw text to Markdown based on file extension."""
+    """Convert raw text to Markdown using selected tools."""
     try:
-        md_text, note = convert_to_markdown(req.raw_text, req.format_text, req.file_ext)
-        return ConvertResponse(markdown=md_text, note=note)
+        results = convert_to_markdown_multi(
+            req.raw_text, req.format_text, req.file_ext, req.tools
+        )
+        return ConvertResponse(results=[ToolResult(**r) for r in results])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Convert failed: {exc}") from exc
 

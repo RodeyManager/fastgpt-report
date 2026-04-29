@@ -143,3 +143,6 @@ __pycache__/
 *.pyc
 .venv/
 *.egg-info/
+
+# Atlas planning artifacts
+.sisyphus/
