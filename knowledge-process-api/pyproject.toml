@@ -17,6 +17,7 @@ dependencies = [
     "Pillow>=10.0.0",
     "httpx>=0.28.1",
     "requests>=2.33.0",
+    "marker-pdf>=1.0.0",
 ]
 
 [build-system]
