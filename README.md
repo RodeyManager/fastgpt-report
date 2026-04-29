@@ -69,7 +69,7 @@ pnpm build
 
 | 引擎 | 支持格式 | 说明 |
 |------|----------|------|
-| FastGPT 默认 | PDF, DOCX, CSV, XLSX, PPTX, TXT, 图片 | 项目内置解析器，与 FastGPT 后端一一对应 |
+| FastGPT 默认 | PDF, DOCX, CSV, XLSX, PPTX, TXT, HTML, 图片 | 项目内置解析器，与 FastGPT 后端一一对应 |
 | MinerU | PDF, DOCX, PPTX, 图片 | 高质量解析（表格识别、公式提取、版面还原），当前为 Placeholder 模式 |
 
 使用方式：上传文件后，在「解析选项」区域选择引擎，分别点击「开始解析」，两个引擎的结果会同时保留并排展示。
@@ -100,6 +100,7 @@ Python 解析库与 FastGPT 后端一一对应：
 | CSV/XLSX | openpyxl | `readFileFn/csv.ts`, `readFileFn/xlsx.ts` |
 | PPTX | python-pptx | `readFileFn/pptx.ts` |
 | TXT | chardet (编码检测) | `readFileFn/text.ts` |
+| HTML | BeautifulSoup4 | `readFileFn/html.ts` |
 | HTML→MD | markdownify, beautifulsoup4 | `turndownService` |
 
 分块算法完全复刻 FastGPT 的 `commonSplit` + `splitTextRecursively` 递归多级分块逻辑。

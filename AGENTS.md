@@ -53,6 +53,7 @@ hf upload spaces/RodeyManager/knowledge-process-api knowledge-process-api/ \
 | `xlsx` | XLSX 解析（openpyxl）                |
 | `pptx` | PPTX 解析（python-pptx）             |
 | `text` | 纯文本解析（chardet 编码检测）       |
+| `html` | HTML 解析（BeautifulSoup4）           |
 
 前端 `parseMethod` 仅用于控制 UI 展示（HTML 预览 vs 纯文本），**API 调用统一使用 `method=auto`**。
 
@@ -60,3 +61,8 @@ hf upload spaces/RodeyManager/knowledge-process-api knowledge-process-api/ \
 
 - Commit message 使用 Conventional Commits 格式：`feat:`, `fix:`, `chore:`, `docs:`, `ci:`
 - 前端改动推送到 `main` 分支后，GitHub Actions 自动构建部署到 GitHub Pages
+
+## 必须遵循的规则
+
+- 必须使用中文回答；
+- 代码注释必须使用中文；

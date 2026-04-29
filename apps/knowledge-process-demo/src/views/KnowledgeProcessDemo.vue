@@ -15,7 +15,7 @@
     >
       <span class="upload-icon">📄</span>
       <div class="upload-text">拖拽文件到此处 或 点击选择文件</div>
-      <div class="upload-hint">支持 PDF / DOCX / CSV / XLSX / TXT / 图片 等格式</div>
+      <div class="upload-hint">支持 PDF / DOCX / CSV / XLSX / TXT / HTML / 图片 等格式</div>
       <input ref="fileInput" type="file" style="display:none" @change="handleFileSelect" />
     </div>
 
@@ -465,6 +465,9 @@ const parseMethods = computed(() => {
     methods.push({ value: 'raw', label: '原始文本' })
   } else if (ext === 'xlsx' || ext === 'xls') {
     methods.push({ value: 'table', label: '表格解析' })
+  } else if (ext === 'html' || ext === 'htm') {
+    methods.push({ value: 'html', label: 'HTML预览' })
+    methods.push({ value: 'text', label: '纯文本提取' })
   } else if (['txt', 'md', 'json', 'js', 'ts', 'py'].includes(ext)) {
     methods.push({ value: 'text', label: '纯文本' })
   } else if (IMAGE_EXTS.includes(ext)) {
@@ -482,7 +485,7 @@ const avgChunkSize = computed(() => {
 
 const isDocxHtmlMode = computed(() => {
   const ext = fileInfo.value?.ext
-  return (ext === 'docx' || ext === 'doc') && parseMethod.value === 'html'
+  return (ext === 'docx' || ext === 'doc' || ext === 'html' || ext === 'htm') && parseMethod.value === 'html'
 })
 
 const mdConversionMethod = computed(() => {
