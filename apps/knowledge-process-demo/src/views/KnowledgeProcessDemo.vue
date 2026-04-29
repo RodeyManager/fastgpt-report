@@ -543,7 +543,7 @@ function processFile(file) {
   markdownText.value = null
   convertResults.value = []
   mdConversionNote.value = ''
-  selectedMdTools.value = ['markdownify']
+  selectedMdTools.value = ['markitdown']
   formatText.value = ''
   parsedResult.value = ''
   rawText.value = ''
