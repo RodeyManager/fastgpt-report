@@ -8,11 +8,11 @@ from typing import Callable
 from ._types import ParseResult
 from .csv_parser import parse as parse_csv
 from .docx_parser import parse as parse_docx
-from .mineru_parser import parse as parse_mineru
-from .mineru_parser import SUPPORTED_MINERU_EXTS
+from .mineru_parser import parse as parse_mineru, SUPPORTED_MINERU_EXTS
 from .pdf_parser import parse as parse_pdf
 from .pptx_parser import parse as parse_pptx
 from .text_parser import parse as parse_text
+from .unstructured_parser import parse as parse_unstructured, SUPPORTED_UNSTRUCTURED_EXTS
 from .xlsx_parser import parse as parse_xlsx
 
 
@@ -45,6 +45,14 @@ def parse_file(
                 f"Supported: {', '.join(sorted(SUPPORTED_MINERU_EXTS))}"
             )
         return parse_mineru(buffer, filename)
+
+    if engine == "unstructured":
+        if ext not in SUPPORTED_UNSTRUCTURED_EXTS:
+            raise ValueError(
+                f"Unstructured-API does not support {ext} files. "
+                f"Supported: {', '.join(sorted(SUPPORTED_UNSTRUCTURED_EXTS))}"
+            )
+        return parse_unstructured(buffer, filename)
 
     # fastgpt (default) — existing logic unchanged
     if method == "auto":

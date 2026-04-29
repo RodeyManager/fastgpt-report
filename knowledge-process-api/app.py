@@ -9,7 +9,7 @@ Endpoints:
   GET  /api/health      — Health check
 
 Run:
-  uvicorn app:app --reload --port 8000
+  uvicorn app:app --reload --port 3002
 """
 
 from __future__ import annotations
@@ -104,6 +104,7 @@ class ParseResponse(BaseModel):
     html_preview: str
     image_list: list
     sheet_names: Optional[list[str]] = None
+    results: Optional[list] = None
 
 
 class ImageIndexResponse(BaseModel):
@@ -140,6 +141,7 @@ async def parse(
             html_preview=result.html_preview,
             image_list=result.image_list,
             sheet_names=result.sheet_names,
+            results=result.results,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
