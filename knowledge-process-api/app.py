@@ -72,7 +72,7 @@ class ConvertRequest(BaseModel):
     raw_text: str
     format_text: str
     file_ext: str
-    tools: list[str] = ["markdownify"]
+    tools: list[str] = ["markitdown"]
 
     @field_validator("tools")
     @classmethod

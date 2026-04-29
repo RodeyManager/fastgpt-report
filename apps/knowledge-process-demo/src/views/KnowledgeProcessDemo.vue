@@ -418,10 +418,10 @@ const engineResults = ref({})
 const MINERU_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp']
 
 const mdTools = [
-  { value: 'markdownify', label: 'Markdownify' },
   { value: 'markitdown', label: 'MarkItDown' },
+  { value: 'markdownify', label: 'Markdownify' },
 ]
-const selectedMdTools = ref(['markdownify'])
+const selectedMdTools = ref(['markitdown'])
 
 function toggleMdTool(toolValue) {
   const idx = selectedMdTools.value.indexOf(toolValue)

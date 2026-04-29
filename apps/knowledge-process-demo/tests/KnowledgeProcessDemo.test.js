@@ -168,9 +168,9 @@ describe('KnowledgeProcessDemo', () => {
   })
 
   // --- Markdown Tool Selector Tests ---
-  it('selectedMdTools defaults to markdownify', () => {
+  it('selectedMdTools defaults to markitdown', () => {
     const wrapper = createWrapper()
-    expect(wrapper.vm.selectedMdTools).toEqual(['markdownify'])
+    expect(wrapper.vm.selectedMdTools).toEqual(['markitdown'])
   })
 
   it('shows tool selector with two checkboxes in step 1', async () => {
@@ -186,25 +186,25 @@ describe('KnowledgeProcessDemo', () => {
     expect(toolCheckboxes.length).toBe(2)
   })
 
-  it('can toggle markitdown tool on', async () => {
+  it('can toggle markdownify tool on', async () => {
     const wrapper = createWrapper()
-    wrapper.vm.toggleMdTool('markitdown')
+    wrapper.vm.toggleMdTool('markdownify')
     await wrapper.vm.$nextTick()
-    expect(wrapper.vm.selectedMdTools).toEqual(['markdownify', 'markitdown'])
+    expect(wrapper.vm.selectedMdTools).toEqual(['markitdown', 'markdownify'])
   })
 
   it('cannot uncheck last tool', async () => {
     const wrapper = createWrapper()
-    expect(wrapper.vm.selectedMdTools).toEqual(['markdownify'])
-    wrapper.vm.toggleMdTool('markdownify')
+    expect(wrapper.vm.selectedMdTools).toEqual(['markitdown'])
+    wrapper.vm.toggleMdTool('markitdown')
     await wrapper.vm.$nextTick()
     expect(wrapper.vm.selectedMdTools.length).toBeGreaterThanOrEqual(1)
-    expect(wrapper.vm.selectedMdTools).toEqual(['markdownify'])
+    expect(wrapper.vm.selectedMdTools).toEqual(['markitdown'])
   })
 
   it('cannot select more than 2 tools', async () => {
     const wrapper = createWrapper()
-    wrapper.vm.toggleMdTool('markitdown')
+    wrapper.vm.toggleMdTool('markdownify')
     await wrapper.vm.$nextTick()
     expect(wrapper.vm.selectedMdTools.length).toBe(2)
   })
@@ -220,15 +220,15 @@ describe('KnowledgeProcessDemo', () => {
     wrapper.vm.rawText = '<h1>Hi</h1>'
     wrapper.vm.formatText = ''
     wrapper.vm.fileInfo = { ext: 'html' }
-    wrapper.vm.selectedMdTools = ['markdownify', 'markitdown']
+    wrapper.vm.selectedMdTools = ['markitdown', 'markdownify']
 
     const fetchMock = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
           results: [
-            { tool: 'markdownify', markdown: '# Hi', note: 'ok', duration_ms: 5.0 },
             { tool: 'markitdown', markdown: '# Hi\n', note: 'ok', duration_ms: 8.0 },
+            { tool: 'markdownify', markdown: '# Hi', note: 'ok', duration_ms: 5.0 },
           ]
         })
       })
@@ -237,9 +237,9 @@ describe('KnowledgeProcessDemo', () => {
 
     await wrapper.vm.runMarkdownConvert()
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
-    expect(body.tools).toEqual(['markdownify', 'markitdown'])
+    expect(body.tools).toEqual(['markitdown', 'markdownify'])
     expect(wrapper.vm.convertResults.length).toBe(2)
-    expect(wrapper.vm.markdownText).toBe('# Hi')
+    expect(wrapper.vm.markdownText).toBe('# Hi\n')
 
     vi.restoreAllMocks()
   })
@@ -255,8 +255,8 @@ describe('KnowledgeProcessDemo', () => {
         ok: true,
         json: () => Promise.resolve({
           results: [
-            { tool: 'markdownify', markdown: '# Result1', note: 'ok', duration_ms: 5.0 },
             { tool: 'markitdown', markdown: '# Result2', note: 'ok', duration_ms: 8.0 },
+            { tool: 'markdownify', markdown: '# Result1', note: 'ok', duration_ms: 5.0 },
           ]
         })
       })
@@ -264,7 +264,7 @@ describe('KnowledgeProcessDemo', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await wrapper.vm.runMarkdownConvert()
-    expect(wrapper.vm.markdownText).toBe('# Result1')
+    expect(wrapper.vm.markdownText).toBe('# Result2')
     expect(wrapper.vm.convertResults.length).toBe(2)
 
     vi.restoreAllMocks()
@@ -276,10 +276,10 @@ describe('KnowledgeProcessDemo', () => {
     wrapper.vm.activeStep = 1
     wrapper.vm.rawText = '<h1>Hi</h1>'
     wrapper.vm.convertResults = [
-      { tool: 'markdownify', markdown: '# A', note: '', duration_ms: 5.0 },
       { tool: 'markitdown', markdown: '# B', note: '', duration_ms: 8.0 },
+      { tool: 'markdownify', markdown: '# A', note: '', duration_ms: 5.0 },
     ]
-    wrapper.vm.markdownText = '# A'
+    wrapper.vm.markdownText = '# B'
     await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
 
