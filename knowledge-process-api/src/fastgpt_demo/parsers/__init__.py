@@ -12,6 +12,7 @@ from .mineru_parser import parse as parse_mineru
 from .mineru_parser import SUPPORTED_MINERU_EXTS
 from .pdf_parser import parse as parse_pdf
 from .pptx_parser import parse as parse_pptx
+from .html_parser import parse as parse_html
 from .text_parser import parse as parse_text
 from .xlsx_parser import parse as parse_xlsx
 
@@ -25,6 +26,8 @@ _EXTENSION_MAP: dict[str, str] = {
     ".txt": "text",
     ".md": "text",
     ".markdown": "text",
+    ".html": "html",
+    ".htm": "html",
 }
 
 
@@ -61,6 +64,7 @@ def parse_file(
         "xlsx": parse_xlsx,
         "pptx": parse_pptx,
         "text": parse_text,
+        "html": parse_html,
     }
 
     handler = dispatch.get(parser_key)

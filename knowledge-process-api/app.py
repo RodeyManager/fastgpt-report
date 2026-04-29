@@ -1,7 +1,7 @@
 """Knowledge Process API — FastAPI REST server for document processing pipeline.
 
 Endpoints:
-  POST /api/parse       — Parse uploaded files (PDF, DOCX, CSV, XLSX, PPTX, TXT, MD)
+  POST /api/parse       — Parse uploaded files (PDF, DOCX, CSV, XLSX, PPTX, TXT, MD, HTML)
   POST /api/convert     — Convert raw text to Markdown
   POST /api/clean       — Clean text with configurable options
   POST /api/chunk       — Split text into chunks
