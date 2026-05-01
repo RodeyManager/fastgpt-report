@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import time
+import unicodedata
 
 from markdownify import MarkdownConverter, markdownify as md
 
@@ -62,6 +63,12 @@ def fastgpt_simple_text(text: str = "") -> str:
     """
     text = text.strip()
 
+    # Unicode NFKC normalization (unifies full-width/half-width, compatibility chars)
+    text = unicodedata.normalize("NFKC", text)
+
+    # Remove invisible Unicode characters (zero-width spaces, BOM, soft hyphens, etc.)
+    text = re.sub(r"[\u200b\u200c\u200d\u200e\u200f\u00ad\u034f\u061c\u180e\ufeff\ufff9\ufffa\ufffb]", "", text)
+
     # Remove spaces between Chinese characters (preserve newlines)
     # JS: /([\u4e00-\u9fa5])[\s&&[^\n]]+([\u4e00-\u9fa5])/g
     # Python: [^\S\n] matches whitespace that is NOT a newline
@@ -70,14 +77,18 @@ def fastgpt_simple_text(text: str = "") -> str:
     # Normalise line endings
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
+    # Fix hyphenated line breaks (e.g. "com-\nputer" → "computer")
+    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+
     # Collapse 3+ consecutive newlines to 2
     text = re.sub(r"\n{3,}", "\n\n", text)
 
     # Collapse 2+ consecutive whitespace (not newlines) to single space
     text = re.sub(r"[^\S\n]{2,}", " ", text)
 
-    # Replace control chars 0x00-0x08 with space
-    text = re.sub(r"[\x00-\x08]", " ", text)
+    # Replace control chars 0x00-0x08, 0x0b, 0x0c, 0x0e-0x1f with space
+    # (preserve 0x09=Tab, 0x0a=LF, 0x0d=CR)
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", " ", text)
 
     return text
 
@@ -134,45 +145,54 @@ def simple_markdown_text(raw_text: str) -> str:
 # Interactive cleaning with toggle options (used in UI)
 # ---------------------------------------------------------------------------
 
-_DEFAULT_OPTIONS = {
-    "trim": True,
-    "remove_chinese_space": True,
-    "normalize_newline": True,
-    "collapse_whitespace": True,
-    "remove_empty_lines": True,
-}
-
 
 def simple_text(text: str, options: dict | None = None) -> str:
+    """Interactive text cleaning — delegates to CleanPipeline.
+
+    保留此函数作为向后兼容入口。
     """
-    Interactive text cleaning with individual toggle options.
+    from fastgpt_demo.cleaners.text_cleaner import simple_text as _pipeline_simple
+    return _pipeline_simple(text, options)
 
-    Mirrors FastGPT's ``simpleText`` UI helper.  Each option is applied
-    independently; control characters (0x00-0x08) are always replaced at
-    the end.
-    """
-    opts: dict = {**_DEFAULT_OPTIONS, **(options or {})}
 
-    if opts.get("trim", True):
-        text = text.strip()
+# ---------------------------------------------------------------------------
+# Sensitive information masking
+# ---------------------------------------------------------------------------
 
-    if opts.get("remove_chinese_space", True):
-        # Remove spaces between Chinese characters (preserve newlines)
-        text = re.sub(r"([\u4e00-\u9fa5])[^\S\n]+([\u4e00-\u9fa5])", r"\1\2", text)
+_SENSITIVE_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]"), "***IDCARD***"),
+    (re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"), "***PHONE***"),
+    (re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"), "***EMAIL***"),
+    (re.compile(r"(?<!\d)(?:\d{1,3}\.){3}\d{1,3}(?!\d)"), "***IP***"),
+]
 
-    if opts.get("normalize_newline", True):
-        text = text.replace("\r\n", "\n").replace("\r", "\n")
 
-    if opts.get("collapse_whitespace", True):
-        text = re.sub(r"[^\S\n]{2,}", " ", text)
-
-    if opts.get("remove_empty_lines", True):
-        text = re.sub(r"\n{3,}", "\n\n", text)
-
-    # Always replace control chars at end
-    text = re.sub(r"[\x00-\x08]", " ", text)
-
+def _mask_sensitive_info(text: str) -> str:
+    for pattern, mask in _SENSITIVE_PATTERNS:
+        text = pattern.sub(mask, text)
     return text
+
+
+# ---------------------------------------------------------------------------
+# Special character filtering (whitelist approach)
+# ---------------------------------------------------------------------------
+
+_ALLOWED_CHARS_RE = re.compile(
+    r"[^\u4e00-\u9fa5"          # Chinese characters
+    r"a-zA-Z0-9"                # English letters and digits
+    r"\s"                       # Whitespace
+    r"，。！？；：""''、…—·"      # Chinese punctuation
+    r",\.!?;:'\"`~"             # English punctuation
+    r"\-_=+\[\]{}()"            # Symbols and brackets
+    r"<>@#\$%\^&\*/\\|"         # More symbols
+    r"\u3000"                   # Full-width space
+    r"\n\r\t"                   # Line breaks and tab
+    r"]"
+)
+
+
+def _filter_special_chars(text: str) -> str:
+    return _ALLOWED_CHARS_RE.sub("", text)
 
 
 # ---------------------------------------------------------------------------

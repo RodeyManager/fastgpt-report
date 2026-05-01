@@ -36,8 +36,15 @@ def parse_file(
     filename: str,
     method: str = "auto",
     engine: str = "fastgpt",
+    header_footer_ratio: float = 0.05,
+    remove_html_noise: bool = True,
 ) -> ParseResult:
-    """Dispatch *buffer* to the correct parser based on *engine* and *filename* extension."""
+    """Dispatch *buffer* to the correct parser based on *engine* and *filename* extension.
+
+    Args:
+        header_footer_ratio: Fraction of page height to filter as header/footer
+            (PDF only). Default 0.05 (5%). Set to 0 to disable.
+    """
 
     ext = PurePosixPath(filename).suffix.lower()
 
@@ -70,6 +77,12 @@ def parse_file(
     handler = dispatch.get(parser_key)
     if handler is None:
         raise ValueError(f"Unknown parse method: {parser_key}")
+
+    if parser_key == "pdf":
+        return handler(buffer, header_footer_ratio=header_footer_ratio)
+
+    if parser_key == "html":
+        return handler(buffer, remove_noise=remove_html_noise)
 
     return handler(buffer)
 

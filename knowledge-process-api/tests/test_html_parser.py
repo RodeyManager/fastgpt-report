@@ -66,12 +66,12 @@ def test_parse_html_with_tables():
 
 
 def test_raw_text_is_html_string():
-    """raw_text 必须是 HTML 字符串（供 converter 使用）。"""
+    """raw_text 必须是完整 HTML 字符串（供 converter 使用），format_text 是清洗后的 HTML。"""
     html = b"<html><body><h1>Title</h1></body></html>"
     result = parse_html(html)
 
     assert result.raw_text.startswith("<html>")
-    assert result.format_text == result.raw_text
+    assert "<h1>Title</h1>" in result.format_text
 
 
 def test_html_preview_is_body():

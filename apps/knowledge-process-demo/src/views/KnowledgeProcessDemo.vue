@@ -240,6 +240,11 @@
                 <option v-for="s in sheetNames" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
+            <div v-if="fileInfo && fileInfo.ext === 'pdf'" class="demo-slider-group" style="margin-top:6px">
+              <label>页眉页脚过滤 <span>{{ (headerFooterRatio * 100).toFixed(0) }}%</span></label>
+              <input type="range" v-model.number="headerFooterRatio" min="0" max="0.2" step="0.01" />
+              <div style="font-size:0.72rem;color:var(--text-muted)">设为 0% 可禁用页眉页脚过滤</div>
+            </div>
             <button class="demo-action-btn" @click="runParse">
               <span>▶</span> 开始解析
             </button>
@@ -276,32 +281,152 @@
           <!-- Step 2 Options: 数据清洗 -->
           <template v-if="activeStep === 2">
             <div class="option-title">清洗选项</div>
+            <div class="demo-option-item" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border-color)">
+              <span style="font-size:0.82rem;font-weight:500">清洗预设</span>
+              <select v-model="selectedProfile" @change="applyProfile(selectedProfile)" style="margin-left:auto;font-size:0.78rem;padding:2px 6px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <option v-for="(p, key) in CLEAN_PROFILES" :key="key" :value="key">{{ p.label }}</option>
+              </select>
+            </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.trim" />
               <span>去除首尾空白</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.trim.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.trim.examples" :key="ex">{{ ex }}</span></span></span></span>
+            </div>
+            <div class="demo-option-item">
+              <input type="checkbox" v-model="cleanOptions.normalize_unicode" />
+              <span>Unicode NFKC 标准化</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.normalize_unicode.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.normalize_unicode.examples" :key="ex">{{ ex }}</span></span></span></span>
+            </div>
+            <div class="demo-option-item">
+              <input type="checkbox" v-model="cleanOptions.remove_invisible_chars" />
+              <span>移除不可见字符</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_invisible_chars.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_invisible_chars.examples" :key="ex">{{ ex }}</span></span></span></span>
             </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.remove_chinese_space" />
               <span>移除中文字符间空格</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_chinese_space.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_chinese_space.examples" :key="ex">{{ ex }}</span></span></span></span>
             </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.normalize_newline" />
               <span>规范化换行符</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.normalize_newline.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.normalize_newline.examples" :key="ex">{{ ex }}</span></span></span></span>
+            </div>
+            <div class="demo-option-item">
+              <input type="checkbox" v-model="cleanOptions.fix_hyphenation" />
+              <span>连字符断行修复</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.fix_hyphenation.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.fix_hyphenation.examples" :key="ex">{{ ex }}</span></span></span></span>
             </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.collapse_whitespace" />
               <span>合并连续空白</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.collapse_whitespace.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.collapse_whitespace.examples" :key="ex">{{ ex }}</span></span></span></span>
             </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.remove_empty_lines" />
               <span>移除空行</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_empty_lines.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_empty_lines.examples" :key="ex">{{ ex }}</span></span></span></span>
+            </div>
+            <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+              <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">高级选项</div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.filter_watermark" />
+                <span>水印文本过滤</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_watermark.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_watermark.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div v-if="cleanOptions.filter_watermark" class="demo-option-item" style="padding-left:20px;flex-direction:column;align-items:flex-start;gap:4px">
+                <span style="font-size:0.78rem;color:var(--text-muted)">自定义关键词（逗号分隔）</span>
+                <input type="text" v-model="cleanOptions.watermark_keywords" placeholder="例如：内部资料,仅供查看" class="watermark-keywords-input" />
+              </div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.deduplicate_paragraphs" />
+                <span>段落去重</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.deduplicate_paragraphs.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.deduplicate_paragraphs.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div v-if="cleanOptions.deduplicate_paragraphs" class="demo-option-item" style="padding-left:20px">
+                <input type="checkbox" v-model="cleanOptions.dedup_fuzzy" />
+                <span style="font-size:0.78rem">模糊去重</span>
+              </div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.clean_table" />
+                <span>表格清洗</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.clean_table.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.clean_table.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.mask_sensitive" />
+                <span>敏感信息脱敏</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.mask_sensitive.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.mask_sensitive.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.filter_special_chars" />
+                <span>特殊字符过滤（白名单）</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_special_chars.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_special_chars.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+                <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">结构级选项</div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.filter_toc" />
+                  <span>目录区域过滤</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_toc.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_toc.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.filter_page_numbers" />
+                  <span>页码过滤</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_page_numbers.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_page_numbers.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.process_footnotes" />
+                  <span>脚注/尾注处理</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.process_footnotes.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.process_footnotes.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div v-if="cleanOptions.process_footnotes" class="demo-option-item" style="padding-left:20px">
+                  <span style="font-size:0.78rem;color:var(--text-muted)">操作</span>
+                  <select v-model="cleanOptions.footnote_action" style="margin-left:8px;font-size:0.78rem;padding:2px 4px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                    <option value="remove">移除</option>
+                    <option value="keep">保留</option>
+                  </select>
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+                <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">HTML 选项</div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.remove_html_comments" />
+                  <span>HTML 注释移除</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_html_comments.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_html_comments.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.normalize_html_entities" />
+                  <span>HTML 实体转换</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.normalize_html_entities.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.normalize_html_entities.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.filter_html_noise" />
+                  <span>网页噪声过滤</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_html_noise.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_html_noise.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+                <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">Markdown 选项</div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.clean_markdown_links" />
+                  <span>Markdown 链接清理</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.clean_markdown_links.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.clean_markdown_links.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.remove_md_escapes" />
+                  <span>Markdown 转义移除</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_md_escapes.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_md_escapes.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.clean_md_structure" />
+                  <span>Markdown 结构清理</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.clean_md_structure.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.clean_md_structure.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+              </div>
             </div>
             <button class="demo-action-btn" @click="runCleaning">
               <span>▶</span> 执行清洗
             </button>
-            <div class="highlight-block" style="font-size:0.82rem;margin-top:8px">
-              FastGPT 的清洗流程会将文档原始输出转换为更干净、更适合分块的文本格式。
-            </div>
           </template>
 
           <!-- Step 3 Options: 文本分块 -->
@@ -387,11 +512,157 @@ const sheetNames = ref([])
 
 const cleanOptions = ref({
   trim: true,
+  normalize_unicode: true,
+  remove_invisible_chars: true,
   remove_chinese_space: true,
   normalize_newline: true,
+  fix_hyphenation: true,
   collapse_whitespace: true,
-  remove_empty_lines: true
+  remove_empty_lines: true,
+  remove_html_comments: false,
+  normalize_html_entities: false,
+  filter_html_noise: false,
+  html_noise_patterns: '',
+  html_ad_keywords: '',
+  filter_watermark: false,
+  watermark_keywords: '',
+  filter_toc: false,
+  filter_page_numbers: false,
+  process_footnotes: false,
+  footnote_action: 'remove',
+  deduplicate_paragraphs: false,
+  dedup_fuzzy: false,
+  clean_table: false,
+  clean_markdown_links: true,
+  remove_md_escapes: true,
+  clean_md_structure: true,
+  mask_sensitive: false,
+  filter_special_chars: false
 })
+
+const CLEAN_PROFILES = {
+  default: { label: '默认', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
+  pdf_academic: { label: '学术论文 PDF', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: true, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
+  pdf_business: { label: '商务 PDF', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: true, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
+  docx_report: { label: 'DOCX 报告', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: false, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
+  table_data: { label: '表格数据', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: true, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
+  legal: { label: '法律文书', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: false, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
+  web_content: { label: '网页内容', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: true, normalize_html_entities: true, filter_html_noise: true, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
+  custom: { label: '自定义', options: null },
+}
+
+const selectedProfile = ref('default')
+
+function applyProfile(profileName) {
+  const profile = CLEAN_PROFILES[profileName]
+  if (profile && profile.options) {
+    Object.assign(cleanOptions.value, JSON.parse(JSON.stringify(profile.options)))
+    selectedProfile.value = profileName
+  }
+}
+
+function isOptionsEqual(a, b) {
+  if (!b) return false
+  return Object.keys(b).every(key => a[key] === b[key])
+}
+
+watch(cleanOptions, (newVal) => {
+  const currentProfile = CLEAN_PROFILES[selectedProfile.value]
+  if (currentProfile && currentProfile.options && !isOptionsEqual(newVal, currentProfile.options)) {
+    selectedProfile.value = 'custom'
+  }
+}, { deep: true })
+
+const CLEAN_RULE_DESCRIPTIONS = {
+  trim: {
+    desc: '移除文本开头和结尾的空白字符（空格、Tab、换行等）',
+    examples: ['  hello  → hello', '\\t文本\\t → 文本']
+  },
+  normalize_unicode: {
+    desc: '使用 NFKC 形式统一全角/半角字符和兼容性字符，确保文本检索一致性',
+    examples: ['ＡＢＣ → ABC', '１２３ → 123', '！？ → !?', '①②③ → 123', 'ﬁ → fi']
+  },
+  remove_invisible_chars: {
+    desc: '移除零宽空格(U+200B)、BOM(U+FEFF)、软连字符(U+00AD)等不可见但影响匹配的字符',
+    examples: ['hello\\u200Bworld → helloworld', '\\uFEFF文本 → 文本', 'soft\\u00ADhyphen → softhyphen']
+  },
+  remove_chinese_space: {
+    desc: '移除中文字符之间的多余空格，保留中英文混排时的必要空格',
+    examples: ['你好 世界 → 你好世界', 'hello 世界 → hello 世界']
+  },
+  normalize_newline: {
+    desc: '将 Windows(\\r\\n) 和旧 Mac(\\r) 换行符统一为 Unix 格式(\\n)',
+    examples: ['行1\\r\\n行2 → 行1\\n行2', '行1\\r行2 → 行1\\n行2']
+  },
+  fix_hyphenation: {
+    desc: '修复 PDF 提取中因断行产生的连字符分割，还原完整单词',
+    examples: ['com-\\nputer → computer', 'awe-\\nsome → awesome']
+  },
+  collapse_whitespace: {
+    desc: '将 2 个及以上连续非换行空白字符合并为 1 个空格',
+    examples: ['hello    world → hello world', 'a  \\t  b → a b']
+  },
+  remove_empty_lines: {
+    desc: '将 3 行及以上连续换行压缩为 2 行，保留段落分隔',
+    examples: ['行1\\n\\n\\n\\n行2 → 行1\\n\\n行2']
+  },
+  mask_sensitive: {
+    desc: '使用占位符替换身份证号、银行卡号、护照号、军官证、手机号、邮箱、IP 地址等敏感信息（默认关闭）',
+    examples: ['13812345678 → ***PHONE***', 'test@mail.com → ***EMAIL***', '110101199001011234 → ***IDCARD***', '6222021234567890 → ***BANKCARD***', 'E12345678 → ***PASSPORT***']
+  },
+  filter_special_chars: {
+    desc: '仅保留中文、英文、数字、常用标点和括号，移除异常符号和乱码字符（默认关闭）',
+    examples: ['你好★世界 → 你好世界', 'test♦123 → test123', '中文，标点！ → 中文，标点！']
+  },
+  filter_watermark: {
+    desc: '过滤文档中的水印文本，检测重复出现的短行和内置水印关键词（如 CONFIDENTIAL、机密等）（默认关闭）',
+    examples: ['重复3次的"CONFIDENTIAL" → 移除', '含"机密"的短行 → 移除', '支持自定义关键词']
+  },
+  deduplicate_paragraphs: {
+    desc: '检测并移除重复段落，支持精确哈希去重和可选的模糊去重（基于编辑距离相似度）（默认关闭）',
+    examples: ['完全相同的段落 → 保留一个', '相似度≥90%的段落 → 可选移除', '模糊去重需单独开启']
+  },
+  clean_table: {
+    desc: '清洗 Markdown 表格，移除全空行和全空列，确保表头结构正确（默认关闭）',
+    examples: ['| | | → 移除空行', '空列 → 移除空列', '保留有效数据和表头']
+  },
+  filter_toc: {
+    desc: '检测并移除自动生成的目录区域，需连续 ≥3 行目录条目才触发过滤（默认关闭）',
+    examples: ['1.1 概述 .... 12 → 移除', '第一章 引言 → 移除', '附录A 数据表 → 移除']
+  },
+  filter_page_numbers: {
+    desc: '移除独立成行的页码文本，如纯数字行、带横线页码、中文/英文页码（默认关闭）',
+    examples: ['独立行 "12" → 移除', '- 5 - → 移除', '第 12 页 → 移除', 'Page 42 → 移除']
+  },
+  process_footnotes: {
+    desc: '识别脚注/尾注标记（如[1]、①），可选移除或保留脚注内容行（默认关闭）',
+    examples: ['[1] 脚注说明 → 可移除', '①注释内容 → 可移除', '支持保留模式']
+  },
+  remove_html_comments: {
+    desc: '移除 HTML 注释标记（<!-- ... -->），包括多行注释',
+    examples: ['<!-- comment --> → 移除', '多行注释 → 移除']
+  },
+  normalize_html_entities: {
+    desc: '将 HTML 命名实体（&amp;等）和数字引用（&#65;等）转换为 Unicode 字符',
+    examples: ['&amp; → &', '&nbsp; → 空格', '&copy; → ©', '&#65; → A']
+  },
+  filter_html_noise: {
+    desc: '移除版权声明、ICP备案、免责声明、广告关键词等网页噪声内容（默认关闭）',
+    examples: ['copyright © 2024 → 移除', '沪ICP备xxx号 → 移除', '免责声明：... → 移除']
+  },
+  clean_markdown_links: {
+    desc: '移除 Markdown 链接文本中的换行符，确保链接格式正确',
+    examples: ['[hello\\nworld](url) → [helloworld](url)']
+  },
+  remove_md_escapes: {
+    desc: '移除不必要的 Markdown 反斜杠转义，还原被转义的字符',
+    examples: ['\\*bold\\* → *bold*', '\\#heading → #heading']
+  },
+  clean_md_structure: {
+    desc: '移除 Markdown 结构元素（标题、代码块）前的多余空格',
+    examples: ['  ## heading → ## heading', '  ```python → ```python']
+  }
+}
 
 const chunkParams = ref({
   chunkSize: 500,
@@ -415,6 +686,7 @@ const isImageFile = computed(() => {
 
 const selectedEngine = ref('fastgpt')
 const engineResults = ref({})
+const headerFooterRatio = ref(0.05)
 const MINERU_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp']
 
 const mdTools = [
@@ -588,6 +860,7 @@ async function runParse() {
     formData.append('file', uploadedFile.value)
     formData.append('method', 'auto')
     formData.append('engine', selectedEngine.value)
+    formData.append('header_footer_ratio', headerFooterRatio.value)
 
     const data = await apiCall('/api/parse', { method: 'POST', body: formData })
 
@@ -654,12 +927,28 @@ async function runCleaning() {
 
   loading.value = true
   try {
+    const opts = { ...cleanOptions.value }
+    if (opts.watermark_keywords && typeof opts.watermark_keywords === 'string') {
+      opts.watermark_keywords = opts.watermark_keywords.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    } else {
+      opts.watermark_keywords = []
+    }
+    if (opts.html_noise_patterns && typeof opts.html_noise_patterns === 'string') {
+      opts.html_noise_patterns = opts.html_noise_patterns.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    } else {
+      opts.html_noise_patterns = []
+    }
+    if (opts.html_ad_keywords && typeof opts.html_ad_keywords === 'string') {
+      opts.html_ad_keywords = opts.html_ad_keywords.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    } else {
+      opts.html_ad_keywords = []
+    }
     const data = await apiCall('/api/clean', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: source,
-        options: { ...cleanOptions.value }
+        options: opts
       })
     })
     cleanedText.value = data.cleaned || ''
@@ -1039,6 +1328,103 @@ watch(parseMethod, async () => {
   accent-color: var(--accent-cyan);
   width: 15px;
   height: 15px;
+}
+
+.watermark-keywords-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.watermark-keywords-input:focus {
+  border-color: var(--accent-cyan);
+}
+
+/* Rule info tooltip */
+.rule-info-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  font-style: italic;
+  cursor: help;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.rule-info-trigger:hover,
+.rule-info-trigger:focus {
+  background: var(--accent-cyan);
+  color: #fff;
+  outline: none;
+}
+
+.rule-info-tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 260px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+  text-align: left;
+}
+
+.rule-info-trigger:hover .rule-info-tooltip,
+.rule-info-trigger:focus .rule-info-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-desc {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.tooltip-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.example-label {
+  font-size: 0.7rem;
+  color: var(--accent-cyan);
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.example-item {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 .demo-action-btn {
