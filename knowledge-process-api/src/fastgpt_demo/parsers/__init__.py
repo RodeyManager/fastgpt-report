@@ -8,6 +8,7 @@ from typing import Callable
 from ._types import ParseResult
 from .csv_parser import parse as parse_csv
 from .docx_parser import parse as parse_docx
+from .docling_parser import parse as parse_docling, SUPPORTED_DOCLING_EXTS
 from .marker_parser import parse as parse_marker, SUPPORTED_MARKER_EXTS
 from .mineru_parser import parse as parse_mineru, SUPPORTED_MINERU_EXTS
 from .pdf_parser import parse as parse_pdf
@@ -62,6 +63,14 @@ def parse_file(
                 f"Supported: {', '.join(sorted(SUPPORTED_MARKER_EXTS))}"
             )
         return parse_marker(buffer, filename)
+
+    if engine == "docling":
+        if ext not in SUPPORTED_DOCLING_EXTS:
+            raise ValueError(
+                f"Docling does not support {ext} files. "
+                f"Supported: {', '.join(sorted(SUPPORTED_DOCLING_EXTS))}"
+            )
+        return parse_docling(buffer, filename)
 
     # fastgpt (default) — existing logic unchanged
     if method == "auto":

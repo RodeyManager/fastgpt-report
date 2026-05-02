@@ -1,4 +1,7 @@
 import io
+import os
+
+import pytest
 
 from src.fastgpt_demo.parsers import parse_file
 from src.fastgpt_demo.parsers._types import ParseResult
@@ -31,6 +34,10 @@ def test_explicit_fastgpt_same_as_default():
 
 
 def test_mineru_engine_pdf():
+    import os
+    # Skip if MinerU service is not available
+    if not os.environ.get("MINERU_API_URL"):
+        pytest.skip("MinerU service not configured")
     buf = _read("test.pdf")
     result = parse_file(buf, "test.pdf", engine="mineru")
     assert isinstance(result, ParseResult)

@@ -120,6 +120,11 @@
                 <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.marker?.html_preview || ''"></div>
                 <div class="compare-stat">{{ (engineResults.marker?.raw_text || '').length }} 字符</div>
               </div>
+              <div class="compare-column" v-if="engineResults.docling">
+                <div class="compare-label">Docling</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.docling?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.docling?.raw_text || '').length }} 字符</div>
+              </div>
             </div>
             <template v-else>
               <div v-if="parsedResult" class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="parsedResult"></div>
@@ -396,6 +401,7 @@ const engineResults = ref({})
 const MINERU_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp']
 const UNSTRUCTURED_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'csv', 'xlsx', 'xls', 'txt', 'md', 'html']
 const MARKER_SUPPORTED_EXTS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'epub']
+const DOCLING_SUPPORTED_EXTS = ['pdf', 'docx', 'xlsx', 'pptx', 'txt', 'md', 'markdown', 'html', 'htm', 'csv', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff', 'tif']
 
 const isMineruAvailable = computed(() => {
   if (!fileInfo.value) return false
@@ -412,6 +418,11 @@ const isMarkerAvailable = computed(() => {
   return MARKER_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
 })
 
+const isDoclingAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return DOCLING_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
 const engines = computed(() => {
   const list = [{ value: 'fastgpt', label: 'FastGPT 默认' }]
   if (isMineruAvailable.value) {
@@ -422,6 +433,9 @@ const engines = computed(() => {
   }
   if (isMarkerAvailable.value) {
     list.push({ value: 'marker', label: 'Marker' })
+  }
+  if (isDoclingAvailable.value) {
+    list.push({ value: 'docling', label: 'Docling' })
   }
   return list
 })
