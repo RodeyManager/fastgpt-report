@@ -78,15 +78,7 @@ def parse_opendataloader_pdf(
     buffer: bytes,
     timeout: float = 120.0,
 ) -> ParseResult:
-    """通过 Docling Server 解析 PDF
-
-    参数:
-        buffer: PDF 文件字节内容
-        timeout: HTTP 请求超时秒数
-
-    返回:
-        ParseResult: raw_text 为提取的纯文本，format_text 为含 Markdown 表格的文本
-    """
+    """通过 Docling Server 解析 PDF（同步版本，仅供测试使用）"""
     resp = httpx.post(
         DOCLING_CONVERT_URL,
         files={"files": ("input.pdf", buffer, "application/pdf")},
@@ -94,13 +86,31 @@ def parse_opendataloader_pdf(
     )
     resp.raise_for_status()
     data = resp.json()
+    return _build_result(data)
 
+
+async def parse_opendataloader_pdf_async(
+    buffer: bytes,
+    timeout: float = 120.0,
+) -> ParseResult:
+    """通过 Docling Server 解析 PDF（异步版本，供 FastAPI 直接 await）"""
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        resp = await client.post(
+            DOCLING_CONVERT_URL,
+            files={"files": ("input.pdf", buffer, "application/pdf")},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    return _build_result(data)
+
+
+def _build_result(data: dict) -> ParseResult:
+    """从 Docling 返回的 JSON 中构建 ParseResult"""
     errors = data.get("errors", [])
     if errors:
         raise RuntimeError(f"Docling 解析错误: {errors[0]}")
 
     doc_json = data["document"]["json_content"]
-
     text_content = _extract_texts(doc_json)
     table_content = _extract_tables_as_markdown(doc_json)
 
@@ -109,10 +119,8 @@ def parse_opendataloader_pdf(
     else:
         format_text = text_content
 
-    raw_text = text_content
-
     return ParseResult(
-        raw_text=raw_text,
+        raw_text=text_content,
         format_text=format_text,
         html_preview="",
         image_list=[],

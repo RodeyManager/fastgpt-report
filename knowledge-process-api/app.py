@@ -15,6 +15,7 @@ Run:
 from __future__ import annotations
 
 import sys
+import traceback
 from pathlib import Path
 from typing import Optional
 
@@ -178,6 +179,13 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+async def _run_parse_async(buffer: bytes, filename: str, method: str, engine: str,
+                          header_footer_ratio: float, remove_html_noise: bool):
+    """异步解析（仅 opendataloader-pdf），直接 await 不阻塞事件循环。"""
+    from fastgpt_demo.parsers.opendataloader_pdf_parser import parse_opendataloader_pdf_async
+    return await parse_opendataloader_pdf_async(buffer)
+
+
 @app.post("/api/parse", response_model=ParseResponse)
 async def parse(
     file: UploadFile = File(...),
@@ -196,11 +204,23 @@ async def parse(
     """
     try:
         buffer = await file.read()
-        result: ParseResult = parse_file(
-            buffer, file.filename or "unknown.txt", method, engine,
-            header_footer_ratio=header_footer_ratio,
-            remove_html_noise=remove_html_noise,
-        )
+        filename = file.filename or "unknown.txt"
+        print(f"[parse] 收到请求 engine={engine} file={filename} size={len(buffer)}", flush=True)
+
+        if engine == "opendataloader-pdf":
+            print(f"[parse] 异步调用 OpenDataLoader-PDF 解析器...", flush=True)
+            result: ParseResult = await _run_parse_async(
+                buffer, filename, method, engine,
+                header_footer_ratio, remove_html_noise,
+            )
+        else:
+            result: ParseResult = parse_file(
+                buffer, filename, method, engine,
+                header_footer_ratio=header_footer_ratio,
+                remove_html_noise=remove_html_noise,
+            )
+
+        print(f"[parse] 完成 raw_text={len(result.raw_text)} chars", flush=True)
         return ParseResponse(
             raw_text=result.raw_text,
             format_text=result.format_text,
@@ -209,8 +229,11 @@ async def parse(
             sheet_names=result.sheet_names,
         )
     except ValueError as exc:
+        print(f"[parse] ValueError: {exc}", flush=True)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        print(f"[parse] 解析失败: {exc}", flush=True)
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Parse failed: {exc}") from exc
 
 
