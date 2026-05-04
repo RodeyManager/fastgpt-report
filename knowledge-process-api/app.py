@@ -176,7 +176,7 @@ async def health() -> dict[str, str]:
 async def parse(
     file: UploadFile = File(...),
     method: str = Form("auto"),
-    engine: str = Form("fastgpt"),
+    engine: str = Form("fastgpt", description="解析引擎，支持 fastgpt / mineru / opendataloader-pdf"),
     header_footer_ratio: float = Form(0.05),
     remove_html_noise: bool = Form(True),
 ):

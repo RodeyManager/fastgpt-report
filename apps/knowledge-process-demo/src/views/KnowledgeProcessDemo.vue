@@ -228,6 +228,9 @@
             <div v-if="!isMineruAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
               MinerU 仅支持 PDF/DOCX/PPTX/图片格式
             </div>
+            <div v-if="!isOpenLoaderAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
+              OpenDataLoader-PDF 仅支持 PDF 格式
+            </div>
             <div class="demo-option-item">
               <span>解析方式：</span>
               <select v-model="parseMethod">
@@ -403,6 +406,14 @@
                   <input type="checkbox" v-model="cleanOptions.filter_html_noise" />
                   <span>网页噪声过滤</span>
                   <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_html_noise.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_html_noise.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div v-if="cleanOptions.filter_html_noise" class="demo-option-item" style="padding-left:20px;flex-direction:column;align-items:flex-start;gap:4px">
+                  <span style="font-size:0.78rem;color:var(--text-muted)">自定义噪声正则（逗号分隔）</span>
+                  <input type="text" v-model="cleanOptions.html_noise_patterns" placeholder="例如：广告位.*，推广链接.*" class="watermark-keywords-input" />
+                </div>
+                <div v-if="cleanOptions.filter_html_noise" class="demo-option-item" style="padding-left:20px;flex-direction:column;align-items:flex-start;gap:4px">
+                  <span style="font-size:0.78rem;color:var(--text-muted)">自定义广告关键词（逗号分隔）</span>
+                  <input type="text" v-model="cleanOptions.html_ad_keywords" placeholder="例如：限时优惠,点击购买" class="watermark-keywords-input" />
                 </div>
               </div>
               <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
@@ -688,6 +699,7 @@ const selectedEngine = ref('fastgpt')
 const engineResults = ref({})
 const headerFooterRatio = ref(0.05)
 const MINERU_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp']
+const OPENLOADER_SUPPORTED_EXTS = ['pdf']
 
 const mdTools = [
   { value: 'markitdown', label: 'MarkItDown' },
@@ -711,10 +723,18 @@ const isMineruAvailable = computed(() => {
   return MINERU_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
 })
 
+const isOpenLoaderAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return OPENLOADER_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
 const engines = computed(() => {
   const list = [{ value: 'fastgpt', label: 'FastGPT 默认' }]
   if (isMineruAvailable.value) {
     list.push({ value: 'mineru', label: 'MinerU' })
+  }
+  if (isOpenLoaderAvailable.value) {
+    list.push({ value: 'opendataloader-pdf', label: 'OpenDataLoader-PDF' })
   }
   return list
 })

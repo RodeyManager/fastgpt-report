@@ -1780,3 +1780,5 @@ curl -X POST http://localhost:8000/api/parse -F "file=@test.html" -F "remove_htm
 ```bash
 git commit --allow-empty -m "chore: P2 data cleaning rules implementation complete"
 ```
+
+opendataloader-pdf-hybrid --ocr-lang "ch_sim,en" --enrich-picture-description --picture-description-preset qwen

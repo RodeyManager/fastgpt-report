@@ -50,6 +50,8 @@ class FilterHtmlNoiseRule(CleanRule):
     BUILTIN_NOISE_PATTERNS = [
         r"copyright\s*©?\s*\d{4}.*$",
         r"all\s+rights\s+reserved.*$",
+        r"版权所有\s*©?\s*\d{4}.*$",
+        r"保留所有权利.*$",
         r"[沪京粤深]ICP[备证]\d+号.*$",
         r"免责声明[：:].*$",
         r"本文来源[：:].*$",
@@ -78,8 +80,8 @@ class FilterHtmlNoiseRule(CleanRule):
             is_noise = any(p.search(stripped) for p in compiled)
 
             if not is_noise and all_ads:
-                ad_count = sum(1 for kw in all_ads if kw in stripped)
-                if ad_count > 0 and ad_count / max(len(stripped), 1) > 0.3:
+                matched_len = sum(stripped.count(kw) * len(kw) for kw in all_ads if kw in stripped)
+                if matched_len > 0 and matched_len / max(len(stripped), 1) > 0.3:
                     is_noise = True
 
             if not is_noise:

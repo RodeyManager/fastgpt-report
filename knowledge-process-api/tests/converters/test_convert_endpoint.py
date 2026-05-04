@@ -7,7 +7,7 @@ client = TestClient(app)
 
 
 def test_single_tool_default():
-    """Default (no tools param) returns 1 result with markdownify."""
+    """Default (no tools param) returns 1 result with markitdown."""
     resp = client.post("/api/convert", json={
         "raw_text": "<h1>Hello</h1>",
         "format_text": "",
@@ -17,7 +17,7 @@ def test_single_tool_default():
     data = resp.json()
     assert "results" in data
     assert len(data["results"]) == 1
-    assert data["results"][0]["tool"] == "markdownify"
+    assert data["results"][0]["tool"] == "markitdown"
     assert "Hello" in data["results"][0]["markdown"]
     assert data["results"][0]["duration_ms"] > 0
 

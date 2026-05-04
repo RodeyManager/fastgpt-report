@@ -56,6 +56,16 @@ def parse_file(
             )
         return parse_mineru(buffer, filename)
 
+    if engine == "opendataloader-pdf":
+        if ext != ".pdf":
+            raise ValueError(
+                f"opendataloader-pdf 引擎仅支持 PDF 文件，"
+                f"当前文件类型: {ext}"
+            )
+        from .opendataloader_pdf_parser import parse_opendataloader_pdf
+
+        return parse_opendataloader_pdf(buffer)
+
     # fastgpt (default) — existing logic unchanged
     if method == "auto":
         parser_key = _EXTENSION_MAP.get(ext)
