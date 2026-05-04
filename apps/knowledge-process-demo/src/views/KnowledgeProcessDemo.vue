@@ -76,7 +76,7 @@
           <span class="stat-label">清洗后</span>
         </div>
         <div class="stat-item" v-if="activeStep === 2">
-          <span class="stat-value">{{ textBeforeClean.length > 0 ? ((1 - cleanedText.length / textBeforeClean.length) * 100).toFixed(1) : 0 }}%</span>
+          <span class="stat-value">{{ textBeforeClean.length > 0 ? ((1 - stripCleanTags(cleanedText).length / textBeforeClean.length) * 100).toFixed(1) : 0 }}%</span>
           <span class="stat-label">缩减率</span>
         </div>
         <div class="stat-item" v-if="activeStep === 3">
@@ -417,6 +417,34 @@
                 </div>
               </div>
               <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+                <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">🏦 保险选项</div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.normalize_clause_numbering" />
+                  <span>条款编号标准化</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.normalize_clause_numbering.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.normalize_clause_numbering.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.preserve_policy_meta" />
+                  <span>保单元数据保留</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.preserve_policy_meta.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.preserve_policy_meta.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.merge_broken_clauses" />
+                  <span>跨页条款合并</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.merge_broken_clauses.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.merge_broken_clauses.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.fix_ocr_numbering" />
+                  <span>OCR 编号修复</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.fix_ocr_numbering.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.fix_ocr_numbering.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.clean_insurance_table" />
+                  <span>保险表格专项清洗</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.clean_insurance_table.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.clean_insurance_table.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
                 <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">Markdown 选项</div>
                 <div class="demo-option-item">
                   <input type="checkbox" v-model="cleanOptions.clean_markdown_links" />
@@ -509,6 +537,10 @@ const convertResults = ref([])
 const mdConversionNote = ref('')
 const cleanedText = ref('')
 const textBeforeClean = ref('')
+
+function stripCleanTags(text) {
+  return text.replace(/\[L[123]\]/g, '').replace(/\[META:[^\]]+\]/g, '').replace(/\[\/META\]/g, '')
+}
 const chunks = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
@@ -548,17 +580,23 @@ const cleanOptions = ref({
   remove_md_escapes: true,
   clean_md_structure: true,
   mask_sensitive: false,
-  filter_special_chars: false
+  filter_special_chars: false,
+  normalize_clause_numbering: true,
+  preserve_policy_meta: true,
+  merge_broken_clauses: true,
+  fix_ocr_numbering: true,
+  clean_insurance_table: false
 })
 
 const CLEAN_PROFILES = {
-  default: { label: '默认', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
-  pdf_academic: { label: '学术论文 PDF', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: true, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
-  pdf_business: { label: '商务 PDF', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: true, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
-  docx_report: { label: 'DOCX 报告', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: false, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
-  table_data: { label: '表格数据', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: true, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
-  legal: { label: '法律文书', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: false, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
-  web_content: { label: '网页内容', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: true, normalize_html_entities: true, filter_html_noise: true, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false } },
+  default: { label: '默认', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  pdf_academic: { label: '学术论文 PDF', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: true, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  pdf_business: { label: '商务 PDF', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: true, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  docx_report: { label: 'DOCX 报告', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: false, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  table_data: { label: '表格数据', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: true, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  legal: { label: '法律文书', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: false, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  web_content: { label: '网页内容', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: true, normalize_html_entities: true, filter_html_noise: true, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  insurance: { label: '保险条款/合同', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: true, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: true, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: true, preserve_policy_meta: true, merge_broken_clauses: true, fix_ocr_numbering: true, clean_insurance_table: false } },
   custom: { label: '自定义', options: null },
 }
 
@@ -672,6 +710,26 @@ const CLEAN_RULE_DESCRIPTIONS = {
   clean_md_structure: {
     desc: '移除 Markdown 结构元素（标题、代码块）前的多余空格',
     examples: ['  ## heading → ## heading', '  ```python → ```python']
+  },
+  normalize_clause_numbering: {
+    desc: '检测保险条款的层级编号（第X条/一、/1.），在原编号后附加层级标记 [L1][L2][L3]，便于下游识别条款边界（默认启用）',
+    examples: ['第三条 保险责任 → 第三条[L1] 保险责任', '一、基本保障 → 一、[L2] 基本保障', '1. 住院医疗 → 1. [L3] 住院医疗']
+  },
+  preserve_policy_meta: {
+    desc: '检测保单元数据（保单号、合同编号、投保人/被保人姓名），用 [META:*] 语义标记包裹，防止被页码过滤等规则误删（默认启用）',
+    examples: ['保单号：P20240101 → 保单号：[META:policy_no]P20240101[/META]', '被保人：张三 → 被保人：[META:insured]张三[/META]']
+  },
+  merge_broken_clauses: {
+    desc: '合并因翻页被截断的条款文本，将不以句号结尾的行与下一行拼接为完整条款（默认启用）',
+    examples: ['"保险人不承\\n担给付责任。" → "保险人不承担给付责任。"']
+  },
+  fix_ocr_numbering: {
+    desc: '修复扫描件 OCR 后的条款编号错误：小写 l→1、字母 O→0、英文标点→中文标点。仅在条款编号上下文中生效，不影响正文（默认启用）',
+    examples: ['第 l2 条 → 第 12 条', '第 1O 条 → 第 10 条', '一, 基本 → 一、基本']
+  },
+  clean_insurance_table: {
+    desc: '保险表格专项清洗：保留注释行（"注："开头）和合计行（含"合计"关键词），合并单元格检测后展开（默认关闭，需搭配 clean_table 使用）',
+    examples: ['注：以上费率为每千元保额 → 保留', '合计 1000 元 → 保留']
   }
 }
 
@@ -968,7 +1026,8 @@ async function runCleaning() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: source,
-        options: opts
+        options: opts,
+        profile: selectedProfile.value
       })
     })
     cleanedText.value = data.cleaned || ''

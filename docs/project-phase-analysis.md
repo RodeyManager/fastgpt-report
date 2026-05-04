@@ -15,7 +15,7 @@ fastgpt-report/
 │   └── knowledge-process-demo/  # Vue 3 文档处理 Demo 前端（交互式）
 ├── knowledge-process-api/       # Python FastAPI 后端（文档处理 REST API）
 │   └── src/fastgpt_demo/
-│       ├── cleaners/            # 清洗模块（CleanRule 架构 + 22 条规则 + 7 个预设）
+│       ├── cleaners/            # 清洗模块（CleanRule 架构 + 28 条规则 + 8 个预设）
 │       ├── converters/          # 转换模块（Markdown 转换器）
 │       ├── parsers/             # 解析模块（7 种文件格式 + 3 种引擎：fastgpt/mineru/opendataloader-pdf）
 │       ├── chunkers/            # 分块模块（递归多策略分块）
@@ -96,10 +96,10 @@ fastgpt-report/
 | Task 3: 页码过滤 | 新增 `filter_page_numbers` 规则 | ✅ 已完成 | `cleaners/rules/page_number.py` 已实现 |
 | Task 4: 脚注/尾注处理 | 新增 `process_footnotes` 规则 | ✅ 已完成 | `cleaners/rules/footnote.py` 已实现 |
 | Task 5: HTML 内容过滤 | 解析层去噪 + 3 条清洗规则 | ✅ 已完成 | `html_parser.py` 含 `remove_noise` 参数；`html_clean.py` 含 3 条规则 |
-| Task 6: CleanProfile 预设机制 | 7 个预设配置 | ✅ 已完成 | `cleaners/profiles/` 目录含 7 个预设文件 |
+| Task 6: CleanProfile 预设机制 | 8 个预设配置 | ✅ 已完成 | `cleaners/profiles/` 目录含 8 个预设文件 |
 | Task 7: 清洗与转换解耦 | `simple_text()` 委托 cleaners | ✅ 已完成 | `markdown_converter.py` 已委托 |
 | Task 8: 前端 UI 更新 | 预设选择器 + P2 规则控件 | ✅ 已完成 | `KnowledgeProcessDemo.vue` 含 8 个预设 + 全部控件 |
-| Task 9: 集成测试和回归验证 | 全量测试通过 | ✅ 已完成 | 234 passed, 0 failed（opendataloader 集成测试在全量运行时可能会超时，属于 Docling Server 资源争用） |
+| Task 9: 集成测试和回归验证 | 全量测试通过 | ✅ 已完成 | 282 passed, 0 failed（opendataloader 集成测试在全量运行时可能会超时，属于 Docling Server 资源争用） |
 | Task 10: OpenDataLoader-PDF 解析引擎集成 | 新增 Docling Server 引擎 | ✅ 已完成 | `opendataloader_pdf_parser.py` + 分派逻辑 + 前端选项 + 13 个测试 |
 
 ### 4.3 CleanProfile 预设验证
@@ -113,6 +113,7 @@ fastgpt-report/
 | `table_data` | 表格数据 | ✅ | +clean_table |
 | `legal` | 法律文书 | ✅ | +filter_toc, +process_footnotes(keep) |
 | `web_content` | 网页内容 | ✅ | +remove_html_comments, +normalize_html_entities, +filter_watermark, +filter_html_noise |
+| `insurance` | 保险条款/保险合同 | ✅ | +normalize_clause_numbering, +preserve_policy_meta, +merge_broken_clauses, +fix_ocr_numbering, +filter_watermark, +filter_page_numbers, +process_footnotes(keep), +clean_table |
 
 ### 4.4 HTML 解析器增强验证
 
@@ -176,9 +177,11 @@ fastgpt-report/
 
 ---
 
-## 七、清洗规则完整清单（22 条）
+## 七、清洗规则完整清单（28 条）
 
-### 7.1 默认启用的规则（12 条）
+> **更新日期**：2026-05-04 — 新增 6 条保险专用规则（`normalize_clause_numbering` / `preserve_policy_meta` / `merge_broken_clauses` / `fix_ocr_numbering` / `clean_insurance_table` / `mask_sensitive` 保险模式增强）
+
+### 7.1 默认启用的规则（17 条）
 
 | 规则名 | name | 来源阶段 | 核心逻辑 |
 |--------|------|---------|---------|
@@ -194,8 +197,13 @@ fastgpt-report/
 | Markdown 转义移除 | `remove_md_escapes` | P2 | 移除反斜杠转义 |
 | Markdown 结构清理 | `clean_md_structure` | P2 | 移除标题/代码块前空格 |
 | 控制字符替换 | *(始终执行)* | P0 | `\x00-\x1f` → 空格 |
+| 条款编号标准化 | `normalize_clause_numbering` | P4-保险 | 检测条款编号层级，附加 `[L1]/[L2]/[L3]` 标记 |
+| 保单元数据保留 | `preserve_policy_meta` | P4-保险 | 检测保单号/合同编号等元数据，用 `[META:*]` 包裹 |
+| 跨页条款合并 | `merge_broken_clauses` | P4-保险 | 合并因翻页截断的条款文本断行 |
+| OCR 编号修复 | `fix_ocr_numbering` | P4-保险 | 修复 OCR 识别错误：`l→1`、`O→0`、英文标点→中文标点 |
+| 保险表格专项清洗 | `clean_insurance_table` | P4-保险 | 保留注释行和合计行（默认禁用） |
 
-### 7.2 默认禁用的规则（10 条）
+### 7.2 默认禁用的规则（11 条）
 
 | 规则名 | name | 来源阶段 | 核心逻辑 |
 |--------|------|---------|---------|
@@ -217,12 +225,12 @@ fastgpt-report/
 
 | 指标 | 数量 |
 |------|------|
-| 测试文件总数 | 30+ |
-| 测试用例总数 | 234 |
-| 通过 | 234 |
-| 失败 | 0（OpenDataLoader 集成测试在 Server 不可用时自动 skip；全量运行时可能因资源争用超时） |
-| 规则测试覆盖 | 22/22 规则均有独立测试 |
-| Profile 测试覆盖 | 7/7 预设均有测试 |
+| 测试文件总数 | 35+ |
+| 测试用例总数 | 282 |
+| 通过 | 282 |
+| 失败 | 0 |
+| 规则测试覆盖 | 28/28 规则均有独立测试 |
+| Profile 测试覆盖 | 8/8 预设均有测试 |
 | HTML 解析器测试 | 基础 10 + 去噪 6 |
 | 解析器引擎测试 | 3 种引擎（fastgpt / mineru / opendataloader-pdf） |
 | 前端传参验证 | 101 项全量通过 |
@@ -677,10 +685,10 @@ Phase 7 (P6) ❌   0% ─── 版面分析模型集成（原 P4）
 | 能力域 | 完成度 | 说明 |
 |--------|--------|------|
 | **解析** | ✅ 100% | 7 种格式 × 3 种引擎，含 MinerU 和 OpenDataLoader-PDF（Docling Server） |
-| **基础清洗** | ✅ 100% | 22 条规则，均通过 E2E 验证 |
+| **基础清洗** | ✅ 100% | 28 条规则（含 6 条保险专用），均通过 E2E 验证 |
 | **结构清洗** | ✅ 100% | 文档树过滤 + CSS 选择器去噪 |
 | **HTML 清洗** | ✅ 100% | 5 条规则 + 可配置噪声模式/广告关键词 |
-| **Profile 预设** | ✅ 100% | 7 个预设，按文件扩展名自动匹配 |
+| **Profile 预设** | ✅ 100% | 8 个预设（含 insurance），按文件扩展名自动匹配 |
 | **修复模块** | ✅ 100% | 标点规范化 + Markdown 链接清洗 |
 | **转换** | ✅ 100% | Markdown → 纯文本委托清洗引擎 |
 | **分块** | ⚠️ 基础 | 递归多策略分块，但无专用模板（与 RAGFlow 最大差距） |
