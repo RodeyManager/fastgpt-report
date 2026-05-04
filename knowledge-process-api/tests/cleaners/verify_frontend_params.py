@@ -55,6 +55,9 @@ frontend_fields = {
     "clean_table": bool, "clean_markdown_links": bool,
     "remove_md_escapes": bool, "clean_md_structure": bool,
     "mask_sensitive": bool, "filter_special_chars": bool,
+    "normalize_clause_numbering": bool, "preserve_policy_meta": bool,
+    "merge_broken_clauses": bool, "fix_ocr_numbering": bool,
+    "clean_insurance_table": bool,
 }
 
 backend_fields = {name: (field.annotation, field.default) for name, field in CleanOptions.model_fields.items()}

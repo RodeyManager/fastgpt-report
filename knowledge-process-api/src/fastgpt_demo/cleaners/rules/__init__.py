@@ -14,3 +14,8 @@ from . import toc_filter
 from . import page_number
 from . import footnote
 from . import html_clean
+from . import clause_numbering
+from . import policy_meta
+from . import clause_merge
+from . import ocr_fix
+from . import insurance_table

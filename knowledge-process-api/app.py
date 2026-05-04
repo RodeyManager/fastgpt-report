@@ -122,6 +122,12 @@ class CleanOptions(BaseModel):
     filter_html_noise: bool = False
     html_noise_patterns: list[str] = []
     html_ad_keywords: list[str] = []
+    normalize_clause_numbering: bool = False
+    preserve_policy_meta: bool = False
+    merge_broken_clauses: bool = False
+    fix_ocr_numbering: bool = False
+    clean_insurance_table: bool = False
+    insurance_mode: bool = False
 
 
 class CleanRequest(BaseModel):
@@ -225,12 +231,12 @@ async def clean(req: CleanRequest):
     """Clean text with configurable options."""
     try:
         from fastgpt_demo.cleaners.profiles import get_profile as _get_profile
-        opts = req.options.model_dump()
-        default_opts = CleanOptions().model_dump()
-        if opts == default_opts and req.profile != "default":
-            p = _get_profile(req.profile)
-            if p:
-                opts = p.to_options_dict()
+        opts = req.options.model_dump(exclude_unset=True)
+        p = _get_profile(req.profile) or _get_profile("default")
+        if p:
+            profile_opts = p.to_options_dict()
+            profile_opts.update(opts)
+            opts = profile_opts
         cleaned = clean_text(req.text, opts)
         return CleanResponse(cleaned=cleaned)
     except Exception as exc:

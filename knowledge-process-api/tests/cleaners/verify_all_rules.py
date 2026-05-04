@@ -25,6 +25,9 @@ BASE_OPTS_OFF = {
     "process_footnotes": False, "footnote_action": "remove",
     "remove_html_comments": False, "normalize_html_entities": False,
     "filter_html_noise": False, "html_noise_patterns": [], "html_ad_keywords": [],
+    "normalize_clause_numbering": False, "preserve_policy_meta": False,
+    "merge_broken_clauses": False, "fix_ocr_numbering": False,
+    "clean_insurance_table": False,
 }
 
 results = []
@@ -231,6 +234,51 @@ verify("clean_md_structure", "  # 标题", {**BASE_OPTS_OFF, "clean_md_structure
 verify("clean_md_structure", "  # 标题", {**BASE_OPTS_OFF, "clean_md_structure": False},
        lambda r: "  # 标题" in r, "禁用：保留标题前空格")
 
+# 23. normalize_clause_numbering（保险专用）
+verify("normalize_clause_numbering", "第三条 保险责任\n一、基本保障\n1. 住院医疗",
+       {**BASE_OPTS_OFF, "normalize_clause_numbering": True},
+       lambda r: "第三条[L1]" in r and "一、[L2]" in r and "1. [L3]" in r, "启用：编号附加层级标签")
+verify("normalize_clause_numbering", "第三条 保险责任",
+       {**BASE_OPTS_OFF, "normalize_clause_numbering": False},
+       lambda r: "[L" not in r, "禁用：不附加层级标签")
+
+# 24. preserve_policy_meta（保险专用）
+verify("preserve_policy_meta", "保单号：P202406010001\n被保险人：张三",
+       {**BASE_OPTS_OFF, "preserve_policy_meta": True},
+       lambda r: "[META:policy_no]" in r and "[META:insured]" in r, "启用：元数据语义标记")
+verify("preserve_policy_meta", "保单号：P202406010001",
+       {**BASE_OPTS_OFF, "preserve_policy_meta": False},
+       lambda r: "[META:" not in r, "禁用：不标记元数据")
+
+# 25. merge_broken_clauses（保险专用）
+verify("merge_broken_clauses", "第三十二条 免责\n因下列原因造成\n保险人不承\n担给付责任。",
+       {**BASE_OPTS_OFF, "merge_broken_clauses": True},
+       lambda r: "保险人不承担给付责任。" in r, "启用：合并跨页条款")
+verify("merge_broken_clauses", "保险人不承\n担责任。",
+       {**BASE_OPTS_OFF, "merge_broken_clauses": False},
+       lambda r: "承\n担" in r, "禁用：不合并断行")
+
+# 26. fix_ocr_numbering（保险专用）
+verify("fix_ocr_numbering", "第 l2 条 保险责任",
+       {**BASE_OPTS_OFF, "fix_ocr_numbering": True},
+       lambda r: "第 12 条" in r, "启用：OCR l→1 修复")
+verify("fix_ocr_numbering", "第 l2 条 保险责任",
+       {**BASE_OPTS_OFF, "fix_ocr_numbering": False},
+       lambda r: "第 l2 条" in r, "禁用：不修复OCR")
+
+# 27. clean_insurance_table（保险专用）
+verify("clean_insurance_table", "| 项目 | 费率 |\n| --- | --- |\n| 意外 | 0.1% |\n注：以上费率为每千元保额\n| 合计 | 0.1% |",
+       {**BASE_OPTS_OFF, "clean_insurance_table": True},
+       lambda r: "注：" in r and "合计" in r, "启用：保留注释行和合计行")
+verify("clean_insurance_table", "| 项目 | 费率 |\n| --- | --- |\n| 意外 | 0.1% |\n注：以上费率为每千元保额",
+       {**BASE_OPTS_OFF, "clean_insurance_table": False},
+       lambda r: "注：" in r, "禁用：不干预表格")
+
+# 28. mask_sensitive insurance_mode（保险模式）
+verify("mask_sensitive-保险", "保单号：P202406010001，电话13812345678，被保人：张三",
+       {**BASE_OPTS_OFF, "mask_sensitive": True, "insurance_mode": True},
+       lambda r: "P202406010001" not in r and "13812345678" not in r and "张三" not in r, "启用+保险模式：局部脱敏")
+
 # 前端参数映射验证
 verify("前端参数映射", "正文\nDRAFT\nDRAFT\n其他",
        {**BASE_OPTS_OFF, "filter_watermark": True, "watermark_keywords": ["DRAFT"]},
@@ -265,7 +313,27 @@ verify_profile("Profile:legal", "1.1 概述 ............ 1\n1.2 背景 .........
        "legal",
        lambda r: "1.1 概述" not in r or "............" not in r, "legal 预设：目录过滤")
 
-# 输出报告
+# insurance Profile 验证
+verify_profile("Profile:insurance", "第三条 保险责任\n一、基本保障\n1. 住院医疗",
+       "insurance",
+       lambda r: "第三条[L1]" in r and "一、[L2]" in r, "insurance 预设：条款编号标签")
+verify_profile("Profile:insurance", "保单号：P202406010001",
+       "insurance",
+       lambda r: "[META:policy_no]" in r, "insurance 预设：元数据保留")
+verify_profile("Profile:insurance", "第三十二条 免责\n因下列原因造成\n保险人不承\n担给付责任。",
+       "insurance",
+       lambda r: "保险人不承担给付责任。" in r, "insurance 预设：跨页条款合并")
+verify_profile("Profile:insurance", "第 l2 条 保险责任",
+       "insurance",
+       lambda r: "第 12 条" in r, "insurance 预设：OCR编号修复")
+verify_profile("Profile:insurance", "正文\n\nDRAFT\nDRAFT\nDRAFT\n更多",
+       "insurance",
+       lambda r: r.count("DRAFT") < 3, "insurance 预设：水印过滤")
+verify_profile("Profile:insurance", "正文\n\n- 12 -\n\n更多",
+       "insurance",
+       lambda r: "- 12 -" not in r, "insurance 预设：页码过滤")
+
+# 报告
 print("=" * 80)
 print("数据清洗规则验证报告：前端选型 → 后端 /api/clean 端点")
 print("=" * 80)

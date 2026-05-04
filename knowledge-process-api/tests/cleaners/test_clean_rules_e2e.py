@@ -35,6 +35,9 @@ BASE_OPTS_OFF = {
     "process_footnotes": False, "footnote_action": "remove",
     "remove_html_comments": False, "normalize_html_entities": False,
     "filter_html_noise": False, "html_noise_patterns": [], "html_ad_keywords": [],
+    "normalize_clause_numbering": False, "preserve_policy_meta": False,
+    "merge_broken_clauses": False, "fix_ocr_numbering": False,
+    "clean_insurance_table": False,
 }
 
 

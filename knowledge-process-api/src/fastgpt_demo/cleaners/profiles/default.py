@@ -14,6 +14,9 @@ DEFAULT_RULES = {
     "clean_table": False, "clean_markdown_links": True,
     "remove_md_escapes": True, "clean_md_structure": True,
     "mask_sensitive": False, "filter_special_chars": False,
+    "normalize_clause_numbering": False, "preserve_policy_meta": False,
+    "merge_broken_clauses": False, "fix_ocr_numbering": False,
+    "clean_insurance_table": False,
 }
 
 DEFAULT_PARAMS = {

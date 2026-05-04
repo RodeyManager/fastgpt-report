@@ -12,7 +12,7 @@ _LOADED = False
 
 _PROFILE_MODULES = [
     "default", "pdf_academic", "pdf_business", "docx_report",
-    "table_data", "legal", "web_content",
+    "table_data", "legal", "web_content", "insurance",
 ]
 
 
