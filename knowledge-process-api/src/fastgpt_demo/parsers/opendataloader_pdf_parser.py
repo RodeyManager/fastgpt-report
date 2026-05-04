@@ -82,6 +82,7 @@ def parse_opendataloader_pdf(
     resp = httpx.post(
         DOCLING_CONVERT_URL,
         files={"files": ("input.pdf", buffer, "application/pdf")},
+        data={"abort_on_error": "false"},
         timeout=timeout,
     )
     resp.raise_for_status()
@@ -98,6 +99,7 @@ async def parse_opendataloader_pdf_async(
         resp = await client.post(
             DOCLING_CONVERT_URL,
             files={"files": ("input.pdf", buffer, "application/pdf")},
+            data={"abort_on_error": "false"},
         )
         resp.raise_for_status()
         data = resp.json()
@@ -107,17 +109,25 @@ async def parse_opendataloader_pdf_async(
 def _build_result(data: dict) -> ParseResult:
     """从 Docling 返回的 JSON 中构建 ParseResult"""
     errors = data.get("errors", [])
-    if errors:
+    doc_json = data.get("document", {}).get("json_content")
+
+    if errors and not doc_json:
         raise RuntimeError(f"Docling 解析错误: {errors[0]}")
 
-    doc_json = data["document"]["json_content"]
+    if not doc_json:
+        raise RuntimeError("Docling 未返回文档内容")
+
+    warning = ""
+    if errors:
+        warning = f"[警告: Docling 部分页面解析失败: {errors[0]}]\n\n"
+
     text_content = _extract_texts(doc_json)
     table_content = _extract_tables_as_markdown(doc_json)
 
     if table_content:
-        format_text = text_content + "\n\n" + table_content
+        format_text = warning + text_content + "\n\n" + table_content
     else:
-        format_text = text_content
+        format_text = warning + text_content
 
     return ParseResult(
         raw_text=text_content,
