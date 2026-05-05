@@ -47,6 +47,9 @@ jobs:
       - name: Build ragflow-report
         run: pnpm --filter ragflow-report build
 
+      - name: Build maxkb-report
+        run: pnpm --filter maxkb-report build
+
       - name: Merge dist directories
         run: |
           mkdir -p _merged_dist
@@ -54,6 +57,7 @@ jobs:
           mkdir -p _merged_dist/demo
           cp -r apps/knowledge-process-demo/dist/. _merged_dist/demo/
           mkdir -p _merged_dist/ragflow-report && cp -r apps/ragflow-report/dist/. _merged_dist/ragflow-report/
+          mkdir -p _merged_dist/maxkb-report && cp -r apps/maxkb-report/dist/. _merged_dist/maxkb-report/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
