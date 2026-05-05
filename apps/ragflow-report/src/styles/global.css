@@ -92,6 +92,52 @@ a:hover { color: var(--accent-teal); }
   color: var(--accent-blue); margin-right: 2px; min-width: 18px;
 }
 
+/* ===== 报告切换器 ===== */
+.sidebar-switcher {
+  padding: 12px;
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+}
+.switcher-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  margin-bottom: 4px;
+}
+.switcher-item:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+.switcher-item.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: default;
+  pointer-events: none;
+}
+.switcher-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.switcher-dot.fastgpt { background: #10b981; }
+.switcher-dot.ragflow { background: #f59e0b; }
+.switcher-dot.maxkb { background: #3370ff; }
+
 /* ===== Section Page ===== */
 .section-page { animation: fadeInUp 0.4s ease; }
 .section-header {
