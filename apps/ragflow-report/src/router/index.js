@@ -12,6 +12,10 @@ const routes = [
   { path: '/retrieval', name: 'retrieval', component: () => import('@/views/Section8Retrieval.vue'), meta: { title: '检索' } },
   { path: '/summary', name: 'summary', component: () => import('@/views/Section9Summary.vue'), meta: { title: '总结与评价' } },
   { path: '/comparison', name: 'comparison', component: () => import('@/views/Section10Comparison.vue'), meta: { title: '三方对比' } },
+  { path: '/etl', name: 'etl', component: () => import('@/views/Section11Etl.vue'), meta: { title: 'AI 数据 ETL' } },
+  { path: '/hybrid-search', name: 'hybrid-search', component: () => import('@/views/Section12HybridSearch.vue'), meta: { title: '高精度混合检索' } },
+  { path: '/agent', name: 'agent', component: () => import('@/views/Section13Agent.vue'), meta: { title: 'AI 智能体编排' } },
+  { path: '/solutions', name: 'solutions', component: () => import('@/views/Section14Solutions.vue'), meta: { title: '行业解决方案' } },
 ]
 
 const router = createRouter({

@@ -62,5 +62,9 @@ const navItems = [
   { path: '/retrieval', num: '08', label: '检索', icon: createIcon('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>') },
   { path: '/summary', num: '09', label: '总结与评价', icon: createIcon('<path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>') },
   { path: '/comparison', num: '10', label: '三方对比', icon: createIcon('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>') },
+  { path: '/etl', num: '11', label: 'AI 数据 ETL', icon: createIcon('<path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/>') },
+  { path: '/hybrid-search', num: '12', label: '高精度混合检索', icon: createIcon('<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/>') },
+  { path: '/agent', num: '13', label: 'AI 智能体编排', icon: createIcon('<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>') },
+  { path: '/solutions', num: '14', label: '行业解决方案', icon: createIcon('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>') },
 ]
 </script>
