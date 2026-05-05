@@ -44,12 +44,16 @@ jobs:
         env:
           VITE_API_BASE: ${{ vars.VITE_API_BASE }}
 
+      - name: Build ragflow-report
+        run: pnpm --filter ragflow-report build
+
       - name: Merge dist directories
         run: |
           mkdir -p _merged_dist
           cp -r apps/fastgpt-report/dist/. _merged_dist/
           mkdir -p _merged_dist/demo
           cp -r apps/knowledge-process-demo/dist/. _merged_dist/demo/
+          mkdir -p _merged_dist/ragflow-report && cp -r apps/ragflow-report/dist/. _merged_dist/ragflow-report/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

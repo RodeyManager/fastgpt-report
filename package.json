@@ -4,9 +4,11 @@
   "scripts": {
     "dev": "pnpm --filter fastgpt-analysis-report dev",
     "dev:demo": "pnpm --filter knowledge-process-demo dev",
-    "build": "pnpm --filter fastgpt-analysis-report build && pnpm --filter knowledge-process-demo build",
+    "dev:ragflow": "pnpm --filter ragflow-report dev",
+    "build": "pnpm --filter fastgpt-analysis-report build && pnpm --filter knowledge-process-demo build && pnpm --filter ragflow-report build",
     "build:report": "pnpm --filter fastgpt-analysis-report build",
     "build:demo": "pnpm --filter knowledge-process-demo build",
+    "build:ragflow": "pnpm --filter ragflow-report build",
     "preview": "pnpm --filter fastgpt-analysis-report preview"
   }
 }
