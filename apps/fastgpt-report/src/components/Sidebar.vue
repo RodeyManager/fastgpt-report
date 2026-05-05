@@ -16,11 +16,29 @@
         <span>{{ item.label }}</span>
       </router-link>
     </nav>
+    <!-- 报告切换 -->
+    <div class="sidebar-switcher">
+      <div class="switcher-label">报告切换</div>
+      <a href="/fastgpt-report/" class="switcher-item" :class="{ active: isCurrent('fastgpt') }">
+        <span class="switcher-dot fastgpt"></span>
+        <span>FastGPT</span>
+      </a>
+      <a href="/fastgpt-report/ragflow-report/" class="switcher-item" :class="{ active: isCurrent('ragflow') }">
+        <span class="switcher-dot ragflow"></span>
+        <span>RAGFlow</span>
+      </a>
+      <a href="/fastgpt-report/maxkb-report/" class="switcher-item" :class="{ active: isCurrent('maxkb') }">
+        <span class="switcher-dot maxkb"></span>
+        <span>MaxKB</span>
+      </a>
+    </div>
   </aside>
 </template>
 
 <script setup>
 import { h } from 'vue'
+
+const isCurrent = (app) => app === 'fastgpt'
 
 const createIcon = (paths) => ({
   render() {
