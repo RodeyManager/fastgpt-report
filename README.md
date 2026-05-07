@@ -70,7 +70,9 @@ pnpm build
 | 引擎 | 支持格式 | 说明 |
 |------|----------|------|
 | FastGPT 默认 | PDF, DOCX, CSV, XLSX, PPTX, TXT, HTML, 图片 | 项目内置解析器，与 FastGPT 后端一一对应 |
-| MinerU | PDF, DOCX, PPTX, 图片 | 高质量解析（表格识别、公式提取、版面还原），当前为 Placeholder 模式 |
+| MinerU (本地) | PDF, DOCX, PPTX, 图片 | 高质量解析（表格识别、公式提取、版面还原），需本地 Docker 部署 |
+| MinerU (SaaS) | PDF, DOCX, PPTX, XLSX, 图片 | 官方轻量 API，免登录，IP 限频，≤10MB/20页 |
+| MinerU (Precision) | PDF, DOC, DOCX, PPT, PPTX, 图片 | 官方精准 API，Token 认证，≤200MB/200页，高精度 |
 
 使用方式：上传文件后，在「解析选项」区域选择引擎，分别点击「开始解析」，两个引擎的结果会同时保留并排展示。
 

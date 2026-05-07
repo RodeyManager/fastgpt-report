@@ -100,15 +100,40 @@
           <!-- Step 0: 文档解析 -->
           <div v-if="activeStep === 0">
             <div v-if="hasMultipleResults" class="compare-view">
-              <div class="compare-column">
+              <div class="compare-column" v-if="engineResults.fastgpt">
                 <div class="compare-label">FastGPT 默认</div>
                 <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.fastgpt?.html_preview || ''"></div>
                 <div class="compare-stat">{{ (engineResults.fastgpt?.raw_text || '').length }} 字符</div>
               </div>
-              <div class="compare-column">
-                <div class="compare-label">MinerU</div>
+              <div class="compare-column" v-if="engineResults.mineru">
+                <div class="compare-label">MinerU (本地)</div>
                 <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru?.html_preview || ''"></div>
                 <div class="compare-stat">{{ (engineResults.mineru?.raw_text || '').length }} 字符</div>
+              </div>
+              <div class="compare-column" v-if="engineResults.mineru_saas">
+                <div class="compare-label">MinerU (SaaS)</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru_saas?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.mineru_saas?.raw_text || '').length }} 字符</div>
+              </div>
+              <div class="compare-column" v-if="engineResults.mineru_precision">
+                <div class="compare-label">MinerU (Precision)</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru_precision?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.mineru_precision?.raw_text || '').length }} 字符</div>
+              </div>
+              <div class="compare-column" v-if="engineResults.unstructured">
+                <div class="compare-label">Unstructured-API</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.unstructured?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.unstructured?.raw_text || '').length }} 字符</div>
+              </div>
+              <div class="compare-column" v-if="engineResults.marker">
+                <div class="compare-label">Marker</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.marker?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.marker?.raw_text || '').length }} 字符</div>
+              </div>
+              <div class="compare-column" v-if="engineResults.docling">
+                <div class="compare-label">Docling</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.docling?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.docling?.raw_text || '').length }} 字符</div>
               </div>
             </div>
             <template v-else>
@@ -227,6 +252,12 @@
             </div>
             <div v-if="!isMineruAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
               MinerU 仅支持 PDF/DOCX/PPTX/图片格式
+            </div>
+            <div v-if="!isMineruSaasAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
+              MinerU SaaS 仅支持 PDF/DOCX/PPTX/XLSX/图片格式
+            </div>
+            <div v-if="!isMineruPrecisionAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
+              MinerU Precision 仅支持 PDF/DOC/DOCX/PPT/PPTX/图片格式
             </div>
             <div class="demo-option-item">
               <span>解析方式：</span>
@@ -360,7 +391,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3002'
 
 const fileInput = ref(null)
 const activeStep = ref(0)
@@ -416,6 +447,11 @@ const isImageFile = computed(() => {
 const selectedEngine = ref('fastgpt')
 const engineResults = ref({})
 const MINERU_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp']
+const MINERU_SAAS_SUPPORTED_EXTS = ['pdf', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg', 'jp2', 'webp', 'gif', 'bmp']
+const MINERU_PRECISION_SUPPORTED_EXTS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'jp2', 'webp', 'gif', 'bmp']
+const UNSTRUCTURED_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'csv', 'xlsx', 'xls', 'txt', 'md', 'html']
+const MARKER_SUPPORTED_EXTS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'epub']
+const DOCLING_SUPPORTED_EXTS = ['pdf', 'docx', 'xlsx', 'pptx', 'txt', 'md', 'markdown', 'html', 'htm', 'csv', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff', 'tif']
 
 const mdTools = [
   { value: 'markitdown', label: 'MarkItDown' },
@@ -439,10 +475,50 @@ const isMineruAvailable = computed(() => {
   return MINERU_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
 })
 
+const isMineruSaasAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return MINERU_SAAS_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
+const isMineruPrecisionAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return MINERU_PRECISION_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
+const isUnstructuredAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return UNSTRUCTURED_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
+const isMarkerAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return MARKER_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
+const isDoclingAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return DOCLING_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
 const engines = computed(() => {
   const list = [{ value: 'fastgpt', label: 'FastGPT 默认' }]
   if (isMineruAvailable.value) {
-    list.push({ value: 'mineru', label: 'MinerU' })
+    list.push({ value: 'mineru', label: 'MinerU (本地)' })
+  }
+  if (isMineruSaasAvailable.value) {
+    list.push({ value: 'mineru_saas', label: 'MinerU (SaaS 免登录)' })
+  }
+  if (isMineruPrecisionAvailable.value) {
+    list.push({ value: 'mineru_precision', label: 'MinerU (Precision API)' })
+  }
+  if (isUnstructuredAvailable.value) {
+    list.push({ value: 'unstructured', label: 'Unstructured-API' })
+  }
+  if (isMarkerAvailable.value) {
+    list.push({ value: 'marker', label: 'Marker' })
+  }
+  if (isDoclingAvailable.value) {
+    list.push({ value: 'docling', label: 'Docling' })
   }
   return list
 })
@@ -570,14 +646,29 @@ function processFile(file) {
   }
 }
 
-async function apiCall(path, options) {
+async function apiCall(path, options, timeout = 300000) {
   errorMsg.value = ''
-  const res = await fetch(`${API_BASE}${path}`, options)
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(errBody.detail || `HTTP ${res.status}`)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(errBody.detail || `HTTP ${res.status}`)
+    }
+    return res.json()
+  } catch (err) {
+    clearTimeout(timeoutId)
+    if (err.name === 'AbortError') {
+      throw new Error('请求超时，请稍后重试')
+    }
+    throw err
   }
-  return res.json()
 }
 
 async function runParse() {
@@ -595,8 +686,9 @@ async function runParse() {
     formatText.value = data.format_text || ''
     parsedResult.value = data.html_preview || ''
     sheetNames.value = data.sheet_names || []
-
-    engineResults.value[selectedEngine.value] = data
+    if (data.results) {
+      engineResults.value[selectedEngine.value] = data
+    }
 
     if (sheetNames.value.length > 0 && !selectedSheet.value) {
       selectedSheet.value = sheetNames.value[0]

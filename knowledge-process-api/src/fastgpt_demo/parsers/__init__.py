@@ -8,12 +8,16 @@ from typing import Callable
 from ._types import ParseResult
 from .csv_parser import parse as parse_csv
 from .docx_parser import parse as parse_docx
-from .mineru_parser import parse as parse_mineru
-from .mineru_parser import SUPPORTED_MINERU_EXTS
+from .docling_parser import parse as parse_docling, SUPPORTED_DOCLING_EXTS
+from .marker_parser import parse as parse_marker, SUPPORTED_MARKER_EXTS
+from .mineru_parser import parse as parse_mineru, SUPPORTED_MINERU_EXTS
+from .mineru_saas_parser import parse as parse_mineru_saas, SUPPORTED_SAAS_EXTS
+from .mineru_precision_parser import parse as parse_mineru_precision, SUPPORTED_PRECISION_EXTS
 from .pdf_parser import parse as parse_pdf
 from .pptx_parser import parse as parse_pptx
 from .html_parser import parse as parse_html
 from .text_parser import parse as parse_text
+from .unstructured_parser import parse as parse_unstructured, SUPPORTED_UNSTRUCTURED_EXTS  # noqa: E402
 from .xlsx_parser import parse as parse_xlsx
 
 
@@ -48,6 +52,46 @@ def parse_file(
                 f"Supported: {', '.join(sorted(SUPPORTED_MINERU_EXTS))}"
             )
         return parse_mineru(buffer, filename)
+
+    if engine == "mineru_saas":
+        if ext not in SUPPORTED_SAAS_EXTS:
+            raise ValueError(
+                f"MinerU SaaS does not support {ext} files. "
+                f"Supported: {', '.join(sorted(SUPPORTED_SAAS_EXTS))}"
+            )
+        return parse_mineru_saas(buffer, filename)
+
+    if engine == "mineru_precision":
+        if ext not in SUPPORTED_PRECISION_EXTS:
+            raise ValueError(
+                f"MinerU Precision API does not support {ext} files. "
+                f"Supported: {', '.join(sorted(SUPPORTED_PRECISION_EXTS))}"
+            )
+        return parse_mineru_precision(buffer, filename)
+
+    if engine == "unstructured":
+        if ext not in SUPPORTED_UNSTRUCTURED_EXTS:
+            raise ValueError(
+                f"Unstructured-API does not support {ext} files. "
+                f"Supported: {', '.join(sorted(SUPPORTED_UNSTRUCTURED_EXTS))}"
+            )
+        return parse_unstructured(buffer, filename)
+
+    if engine == "marker":
+        if ext not in SUPPORTED_MARKER_EXTS:
+            raise ValueError(
+                f"Marker does not support {ext} files. "
+                f"Supported: {', '.join(sorted(SUPPORTED_MARKER_EXTS))}"
+            )
+        return parse_marker(buffer, filename)
+
+    if engine == "docling":
+        if ext not in SUPPORTED_DOCLING_EXTS:
+            raise ValueError(
+                f"Docling does not support {ext} files. "
+                f"Supported: {', '.join(sorted(SUPPORTED_DOCLING_EXTS))}"
+            )
+        return parse_docling(buffer, filename)
 
     # fastgpt (default) — existing logic unchanged
     if method == "auto":

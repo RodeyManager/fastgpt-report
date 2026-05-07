@@ -256,6 +256,8 @@ const engines = ref([
 ])
 
 const pdfServices = ref([
+  { name: 'MinerU Precision API', desc: '官方云服务，Token认证，支持≤200MB/200页，需申请API Token' },
+  { name: 'MinerU Agent API', desc: '官方轻量API，免登录，IP限频，支持≤10MB/20页，适合AI Agent场景' },
   { name: 'Doc2x API', desc: '预上传 → 解析 → 轮询获取结果' },
   { name: 'Textin / XParse', desc: 'PDF → Markdown 转换服务' },
   { name: '自定义URL', desc: '可配置端点，支持自定义解析服务' }

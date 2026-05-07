@@ -9,14 +9,25 @@ Endpoints:
   GET  /api/health      — Health check
 
 Run:
-  uvicorn app:app --reload --port 8000
+  uvicorn app:app --reload --port 3002
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Optional
+
+# Load .env file from project root (parent of knowledge-process-api directory)
+_env_file = Path(__file__).resolve().parent.parent / ".env"
+if _env_file.exists():
+    with open(_env_file) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, value = line.partition("=")
+                os.environ.setdefault(key, value)
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -126,6 +137,7 @@ class ParseResponse(BaseModel):
     html_preview: str
     image_list: list
     sheet_names: Optional[list[str]] = None
+    results: Optional[list] = None
 
 
 class ImageIndexResponse(BaseModel):
@@ -162,6 +174,7 @@ async def parse(
             html_preview=result.html_preview,
             image_list=result.image_list,
             sheet_names=result.sheet_names,
+            results=result.results,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

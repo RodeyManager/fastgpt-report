@@ -13,3 +13,4 @@ class ParseResult:
     html_preview: str
     image_list: list = field(default_factory=list)
     sheet_names: Optional[list[str]] = None
+    results: Optional[list] = None
