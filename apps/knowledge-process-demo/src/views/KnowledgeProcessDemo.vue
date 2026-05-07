@@ -106,9 +106,19 @@
                 <div class="compare-stat">{{ (engineResults.fastgpt?.raw_text || '').length }} 字符</div>
               </div>
               <div class="compare-column" v-if="engineResults.mineru">
-                <div class="compare-label">MinerU</div>
+                <div class="compare-label">MinerU (本地)</div>
                 <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru?.html_preview || ''"></div>
                 <div class="compare-stat">{{ (engineResults.mineru?.raw_text || '').length }} 字符</div>
+              </div>
+              <div class="compare-column" v-if="engineResults.mineru_saas">
+                <div class="compare-label">MinerU (SaaS)</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru_saas?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.mineru_saas?.raw_text || '').length }} 字符</div>
+              </div>
+              <div class="compare-column" v-if="engineResults.mineru_precision">
+                <div class="compare-label">MinerU (Precision)</div>
+                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru_precision?.html_preview || ''"></div>
+                <div class="compare-stat">{{ (engineResults.mineru_precision?.raw_text || '').length }} 字符</div>
               </div>
               <div class="compare-column" v-if="engineResults.unstructured">
                 <div class="compare-label">Unstructured-API</div>
@@ -219,6 +229,12 @@
             </div>
             <div v-if="!isMineruAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
               MinerU 仅支持 PDF/DOCX/PPTX/图片格式
+            </div>
+            <div v-if="!isMineruSaasAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
+              MinerU SaaS 仅支持 PDF/DOCX/PPTX/XLSX/图片格式
+            </div>
+            <div v-if="!isMineruPrecisionAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
+              MinerU Precision 仅支持 PDF/DOC/DOCX/PPT/PPTX/图片格式
             </div>
             <div class="demo-option-item">
               <span>解析方式：</span>
@@ -399,6 +415,8 @@ const isImageFile = computed(() => {
 const selectedEngine = ref('fastgpt')
 const engineResults = ref({})
 const MINERU_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp']
+const MINERU_SAAS_SUPPORTED_EXTS = ['pdf', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg', 'jp2', 'webp', 'gif', 'bmp']
+const MINERU_PRECISION_SUPPORTED_EXTS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'jp2', 'webp', 'gif', 'bmp']
 const UNSTRUCTURED_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'csv', 'xlsx', 'xls', 'txt', 'md', 'html']
 const MARKER_SUPPORTED_EXTS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'epub']
 const DOCLING_SUPPORTED_EXTS = ['pdf', 'docx', 'xlsx', 'pptx', 'txt', 'md', 'markdown', 'html', 'htm', 'csv', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff', 'tif']
@@ -406,6 +424,16 @@ const DOCLING_SUPPORTED_EXTS = ['pdf', 'docx', 'xlsx', 'pptx', 'txt', 'md', 'mar
 const isMineruAvailable = computed(() => {
   if (!fileInfo.value) return false
   return MINERU_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
+const isMineruSaasAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return MINERU_SAAS_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
+const isMineruPrecisionAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return MINERU_PRECISION_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
 })
 
 const isUnstructuredAvailable = computed(() => {
@@ -426,7 +454,13 @@ const isDoclingAvailable = computed(() => {
 const engines = computed(() => {
   const list = [{ value: 'fastgpt', label: 'FastGPT 默认' }]
   if (isMineruAvailable.value) {
-    list.push({ value: 'mineru', label: 'MinerU' })
+    list.push({ value: 'mineru', label: 'MinerU (本地)' })
+  }
+  if (isMineruSaasAvailable.value) {
+    list.push({ value: 'mineru_saas', label: 'MinerU (SaaS 免登录)' })
+  }
+  if (isMineruPrecisionAvailable.value) {
+    list.push({ value: 'mineru_precision', label: 'MinerU (Precision API)' })
   }
   if (isUnstructuredAvailable.value) {
     list.push({ value: 'unstructured', label: 'Unstructured-API' })
