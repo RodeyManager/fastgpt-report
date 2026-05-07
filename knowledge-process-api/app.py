@@ -14,11 +14,19 @@ Run:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+
+# 加载 .env 文件中的环境变量（本地开发时使用）
+# 若系统已存在同名环境变量，则不会覆盖
+_ENV_PATH = Path(__file__).resolve().parent / ".env"
+if _ENV_PATH.exists():
+    load_dotenv(dotenv_path=_ENV_PATH, override=False)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 

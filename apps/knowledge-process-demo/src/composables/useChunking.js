@@ -67,7 +67,11 @@ export function useChunking() {
       return params.value[strategy.value] || {}
     },
     set(val) {
-      params.value[strategy.value] = { ...params.value[strategy.value], ...val }
+      // 直接替换整个 params.value，确保 Vue 响应式系统能正确检测到深层变化
+      params.value = {
+        ...params.value,
+        [strategy.value]: { ...params.value[strategy.value], ...val }
+      }
     }
   })
 
@@ -113,6 +117,7 @@ export function useChunking() {
         semantic_threshold: p.semanticThreshold ?? 0.5,
         structure_type: p.structureType ?? 'markdown'
       }
+      console.log('[useChunking] runChunk request body:', body)
 
       const res = await fetch(`${API_BASE}/api/chunk`, {
         method: 'POST',
@@ -156,17 +161,20 @@ export function useChunking() {
     error.value = ''
 
     try {
+      const baseParams = params.value[strategy.value] || {}
       const promises = strategyList.map(async (s) => {
         const p = params.value[s] || {}
         const body = {
           text,
           strategy: s,
-          chunk_size: p.chunkSize ?? 500,
-          overlap_ratio: p.overlapRatio ?? 0.0,
-          paragraph_chunk_deep: p.paragraphChunkDeep ?? 2,
-          semantic_threshold: p.semanticThreshold ?? 0.5,
-          structure_type: p.structureType ?? 'markdown'
+          // 对比模式下：优先使用该策略自身的参数，若未设置则继承当前界面上的参数值
+          chunk_size: p.chunkSize ?? baseParams.chunkSize ?? 500,
+          overlap_ratio: p.overlapRatio ?? baseParams.overlapRatio ?? 0.0,
+          paragraph_chunk_deep: p.paragraphChunkDeep ?? baseParams.paragraphChunkDeep ?? 2,
+          semantic_threshold: p.semanticThreshold ?? baseParams.semanticThreshold ?? 0.5,
+          structure_type: p.structureType ?? baseParams.structureType ?? 'markdown'
         }
+        console.log('[useChunking] runCompare request body:', body)
         const res = await fetch(`${API_BASE}/api/chunk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -199,7 +207,10 @@ export function useChunking() {
    */
   function resetParams(s = null) {
     const target = s || strategy.value
-    params.value[target] = { ...DEFAULT_PARAMS[target] }
+    params.value = {
+      ...params.value,
+      [target]: { ...DEFAULT_PARAMS[target] }
+    }
   }
 
   /**
