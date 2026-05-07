@@ -55,9 +55,17 @@
 
     <template v-if="uploadedFile && !loading">
       <div class="demo-stats-bar">
-        <div class="stat-item" v-if="activeStep === 0">
+        <div class="stat-item" v-if="activeStep === 0 && !hasMultipleResults">
           <span class="stat-value">{{ rawText.length }}</span>
           <span class="stat-label">原始字符数</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 0 && hasMultipleResults">
+          <span class="stat-value">{{ (engineResults.fastgpt?.raw_text || '').length }}</span>
+          <span class="stat-label">FastGPT 默认字符数</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 0 && hasMultipleResults">
+          <span class="stat-value">{{ (engineResults['opendataloader-pdf']?.raw_text || engineResults.mineru?.raw_text || '').length }}</span>
+          <span class="stat-label">{{ engineResults['opendataloader-pdf'] ? 'OpenDataLoader-PDF 字符数' : 'MinerU 字符数' }}</span>
         </div>
         <div class="stat-item" v-if="activeStep === 1">
           <span class="stat-value">{{ rawText.length }}</span>
@@ -100,19 +108,20 @@
           <!-- Step 0: 文档解析 -->
           <div v-if="activeStep === 0">
             <div v-if="hasMultipleResults" class="compare-view">
-              <div class="compare-column">
-                <div class="compare-label">FastGPT 默认</div>
-                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.fastgpt?.html_preview || ''"></div>
-                <div class="compare-stat">{{ (engineResults.fastgpt?.raw_text || '').length }} 字符</div>
-              </div>
-              <div class="compare-column">
-                <div class="compare-label">MinerU</div>
-                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru?.html_preview || ''"></div>
-                <div class="compare-stat">{{ (engineResults.mineru?.raw_text || '').length }} 字符</div>
+              <div v-for="(engKey, idx) in Object.keys(engineResults).filter(k => engineResults[k])" :key="engKey" class="compare-column">
+                <div class="compare-label">{{ engKey === 'fastgpt' ? 'FastGPT 默认' : engKey === 'mineru' ? 'MinerU' : 'OpenDataLoader-PDF' }}</div>
+                <div class="result-content" :class="{ 'html-content': engKey !== 'opendataloader-pdf' && parseMethod === 'html' }">
+                  <template v-if="engKey !== 'opendataloader-pdf' && engineResults[engKey]?.html_preview"><div v-html="engineResults[engKey].html_preview"></div></template>
+                  <template v-else>{{ engineResults[engKey]?.format_text || engineResults[engKey]?.raw_text || '' }}</template>
+                </div>
+                <div class="compare-stat">{{ (engineResults[engKey]?.raw_text || '').length }} 字符</div>
               </div>
             </div>
             <template v-else>
-              <div v-if="parsedResult" class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="parsedResult"></div>
+              <div v-if="parsedResult" class="result-content" :class="{ 'html-content': isParsedHtmlContent }">
+                <template v-if="isParsedHtmlContent"><div v-html="parsedResult"></div></template>
+                <template v-else>{{ parsedResult }}</template>
+              </div>
               <div v-else class="empty-state">点击右侧「开始解析」按钮进行文档解析</div>
             </template>
           </div>
@@ -838,6 +847,11 @@ const isDocxHtmlMode = computed(() => {
   return (ext === 'docx' || ext === 'doc' || ext === 'html' || ext === 'htm') && parseMethod.value === 'html'
 })
 
+const isParsedHtmlContent = computed(() => {
+  if (selectedEngine.value === 'opendataloader-pdf') return false
+  return parseMethod.value === 'html'
+})
+
 const mdConversionMethod = computed(() => {
   if (!fileInfo.value) return '未知'
   const ext = fileInfo.value.ext
@@ -922,32 +936,73 @@ function processFile(file) {
 
 async function apiCall(path, options) {
   errorMsg.value = ''
-  const res = await fetch(`${API_BASE}${path}`, options)
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(errBody.detail || `HTTP ${res.status}`)
+  const controller = new AbortController()
+  const timeout = options.timeout || 120000
+  delete options.timeout
+  const timer = setTimeout(() => controller.abort(), timeout)
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { ...options, signal: controller.signal })
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(errBody.detail || `HTTP ${res.status}`)
+    }
+    return res.json()
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`请求超时（${timeout / 1000}秒），服务器仍在处理中`)
+    }
+    if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
+      const port = API_BASE.split(':').pop() || '8000'
+      throw new Error(`无法连接到后端服务，请确认 API 服务已启动（端口 ${port}）`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
   }
-  return res.json()
 }
 
 async function runParse() {
   if (!uploadedFile.value) return
   loading.value = true
   try {
-    const formData = new FormData()
-    formData.append('file', uploadedFile.value)
-    formData.append('method', 'auto')
-    formData.append('engine', selectedEngine.value)
-    formData.append('header_footer_ratio', headerFooterRatio.value)
+    const currentEngine = selectedEngine.value
 
-    const data = await apiCall('/api/parse', { method: 'POST', body: formData })
+    if (currentEngine === 'opendataloader-pdf') {
+      const [fastgptData, odlData] = await Promise.all([
+        apiCall('/api/parse', {
+          method: 'POST',
+          body: (() => { const fd = new FormData(); fd.append('file', uploadedFile.value); fd.append('method', 'auto'); fd.append('engine', 'fastgpt'); fd.append('header_footer_ratio', headerFooterRatio.value); return fd })(),
+          timeout: 120000,
+        }),
+        apiCall('/api/parse', {
+          method: 'POST',
+          body: (() => { const fd = new FormData(); fd.append('file', uploadedFile.value); fd.append('method', 'auto'); fd.append('engine', 'opendataloader-pdf'); fd.append('header_footer_ratio', headerFooterRatio.value); return fd })(),
+          timeout: 300000,
+        }),
+      ])
+      engineResults.value['fastgpt'] = fastgptData
+      engineResults.value['opendataloader-pdf'] = odlData
 
-    rawText.value = data.raw_text || ''
-    formatText.value = data.format_text || ''
-    parsedResult.value = data.html_preview || ''
-    sheetNames.value = data.sheet_names || []
+      rawText.value = odlData.raw_text || ''
+      formatText.value = odlData.format_text || ''
+      parsedResult.value = odlData.html_preview || odlData.format_text || odlData.raw_text || ''
+      sheetNames.value = odlData.sheet_names || fastgptData.sheet_names || []
+    } else {
+      const formData = new FormData()
+      formData.append('file', uploadedFile.value)
+      formData.append('method', 'auto')
+      formData.append('engine', currentEngine)
+      formData.append('header_footer_ratio', headerFooterRatio.value)
 
-    engineResults.value[selectedEngine.value] = data
+      const data = await apiCall('/api/parse', { method: 'POST', body: formData, timeout: 120000 })
+
+      rawText.value = data.raw_text || ''
+      formatText.value = data.format_text || ''
+      parsedResult.value = data.html_preview || data.format_text || data.raw_text || ''
+      sheetNames.value = data.sheet_names || []
+
+      engineResults.value[currentEngine] = data
+    }
 
     if (sheetNames.value.length > 0 && !selectedSheet.value) {
       selectedSheet.value = sheetNames.value[0]
