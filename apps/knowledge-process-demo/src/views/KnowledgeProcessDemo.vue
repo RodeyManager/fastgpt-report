@@ -55,9 +55,17 @@
 
     <template v-if="uploadedFile && !loading">
       <div class="demo-stats-bar">
-        <div class="stat-item" v-if="activeStep === 0">
+        <div class="stat-item" v-if="activeStep === 0 && !hasMultipleResults">
           <span class="stat-value">{{ rawText.length }}</span>
           <span class="stat-label">原始字符数</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 0 && hasMultipleResults">
+          <span class="stat-value">{{ (engineResults.fastgpt?.raw_text || '').length }}</span>
+          <span class="stat-label">FastGPT 默认字符数</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 0 && hasMultipleResults">
+          <span class="stat-value">{{ (engineResults['opendataloader-pdf']?.raw_text || engineResults.mineru?.raw_text || '').length }}</span>
+          <span class="stat-label">{{ engineResults['opendataloader-pdf'] ? 'OpenDataLoader-PDF 字符数' : 'MinerU 字符数' }}</span>
         </div>
         <div class="stat-item" v-if="activeStep === 1">
           <span class="stat-value">{{ rawText.length }}</span>
@@ -76,7 +84,7 @@
           <span class="stat-label">清洗后</span>
         </div>
         <div class="stat-item" v-if="activeStep === 2">
-          <span class="stat-value">{{ textBeforeClean.length > 0 ? ((1 - cleanedText.length / textBeforeClean.length) * 100).toFixed(1) : 0 }}%</span>
+          <span class="stat-value">{{ textBeforeClean.length > 0 ? ((1 - stripCleanTags(cleanedText).length / textBeforeClean.length) * 100).toFixed(1) : 0 }}%</span>
           <span class="stat-label">缩减率</span>
         </div>
         <div class="stat-item" v-if="activeStep === 3">
@@ -100,44 +108,20 @@
           <!-- Step 0: 文档解析 -->
           <div v-if="activeStep === 0">
             <div v-if="hasMultipleResults" class="compare-view">
-              <div class="compare-column" v-if="engineResults.fastgpt">
-                <div class="compare-label">FastGPT 默认</div>
-                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.fastgpt?.html_preview || ''"></div>
-                <div class="compare-stat">{{ (engineResults.fastgpt?.raw_text || '').length }} 字符</div>
-              </div>
-              <div class="compare-column" v-if="engineResults.mineru">
-                <div class="compare-label">MinerU (本地)</div>
-                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru?.html_preview || ''"></div>
-                <div class="compare-stat">{{ (engineResults.mineru?.raw_text || '').length }} 字符</div>
-              </div>
-              <div class="compare-column" v-if="engineResults.mineru_saas">
-                <div class="compare-label">MinerU (SaaS)</div>
-                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru_saas?.html_preview || ''"></div>
-                <div class="compare-stat">{{ (engineResults.mineru_saas?.raw_text || '').length }} 字符</div>
-              </div>
-              <div class="compare-column" v-if="engineResults.mineru_precision">
-                <div class="compare-label">MinerU (Precision)</div>
-                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.mineru_precision?.html_preview || ''"></div>
-                <div class="compare-stat">{{ (engineResults.mineru_precision?.raw_text || '').length }} 字符</div>
-              </div>
-              <div class="compare-column" v-if="engineResults.unstructured">
-                <div class="compare-label">Unstructured-API</div>
-                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.unstructured?.html_preview || ''"></div>
-                <div class="compare-stat">{{ (engineResults.unstructured?.raw_text || '').length }} 字符</div>
-              </div>
-              <div class="compare-column" v-if="engineResults.marker">
-                <div class="compare-label">Marker</div>
-                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.marker?.html_preview || ''"></div>
-                <div class="compare-stat">{{ (engineResults.marker?.raw_text || '').length }} 字符</div>
-              </div>
-              <div class="compare-column" v-if="engineResults.docling">
-                <div class="compare-label">Docling</div>
-                <div class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="engineResults.docling?.html_preview || ''"></div>
-                <div class="compare-stat">{{ (engineResults.docling?.raw_text || '').length }} 字符</div>
+              <div v-for="engKey in Object.keys(engineResults).filter(k => engineResults[k])" :key="engKey" class="compare-column">
+                <div class="compare-label">{{ ENGINE_LABELS[engKey] || engKey }}</div>
+                <div class="result-content" :class="{ 'html-content': engKey !== 'opendataloader-pdf' && parseMethod === 'html' }">
+                  <template v-if="engKey !== 'opendataloader-pdf' && engineResults[engKey]?.html_preview"><div v-html="engineResults[engKey].html_preview"></div></template>
+                  <template v-else>{{ engineResults[engKey]?.format_text || engineResults[engKey]?.raw_text || '' }}</template>
+                </div>
+                <div class="compare-stat">{{ (engineResults[engKey]?.raw_text || '').length }} 字符</div>
               </div>
             </div>
             <template v-else>
-              <div v-if="parsedResult" class="result-content" :class="{ 'html-content': parseMethod === 'html' }" v-html="parsedResult"></div>
+              <div v-if="parsedResult" class="result-content" :class="{ 'html-content': isParsedHtmlContent }">
+                <template v-if="isParsedHtmlContent"><div v-html="parsedResult"></div></template>
+                <template v-else>{{ parsedResult }}</template>
+              </div>
               <div v-else class="empty-state">点击右侧「开始解析」按钮进行文档解析</div>
             </template>
           </div>
@@ -259,6 +243,9 @@
             <div v-if="!isMineruPrecisionAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
               MinerU Precision 仅支持 PDF/DOC/DOCX/PPT/PPTX/图片格式
             </div>
+            <div v-if="!isOpenLoaderAvailable && fileInfo" style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0">
+              OpenDataLoader-PDF 仅支持 PDF 格式
+            </div>
             <div class="demo-option-item">
               <span>解析方式：</span>
               <select v-model="parseMethod">
@@ -270,6 +257,11 @@
               <select v-model="selectedSheet">
                 <option v-for="s in sheetNames" :key="s" :value="s">{{ s }}</option>
               </select>
+            </div>
+            <div v-if="fileInfo && fileInfo.ext === 'pdf'" class="demo-slider-group" style="margin-top:6px">
+              <label>页眉页脚过滤 <span>{{ (headerFooterRatio * 100).toFixed(0) }}%</span></label>
+              <input type="range" v-model.number="headerFooterRatio" min="0" max="0.2" step="0.01" />
+              <div style="font-size:0.72rem;color:var(--text-muted)">设为 0% 可禁用页眉页脚过滤</div>
             </div>
             <button class="demo-action-btn" @click="runParse">
               <span>▶</span> 开始解析
@@ -307,32 +299,188 @@
           <!-- Step 2 Options: 数据清洗 -->
           <template v-if="activeStep === 2">
             <div class="option-title">清洗选项</div>
+            <div class="demo-option-item" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border-color)">
+              <span style="font-size:0.82rem;font-weight:500">清洗预设</span>
+              <select v-model="selectedProfile" @change="applyProfile(selectedProfile)" style="margin-left:auto;font-size:0.78rem;padding:2px 6px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                <option v-for="(p, key) in CLEAN_PROFILES" :key="key" :value="key">{{ p.label }}</option>
+              </select>
+            </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.trim" />
               <span>去除首尾空白</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.trim.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.trim.examples" :key="ex">{{ ex }}</span></span></span></span>
+            </div>
+            <div class="demo-option-item">
+              <input type="checkbox" v-model="cleanOptions.normalize_unicode" />
+              <span>Unicode NFKC 标准化</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.normalize_unicode.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.normalize_unicode.examples" :key="ex">{{ ex }}</span></span></span></span>
+            </div>
+            <div class="demo-option-item">
+              <input type="checkbox" v-model="cleanOptions.remove_invisible_chars" />
+              <span>移除不可见字符</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_invisible_chars.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_invisible_chars.examples" :key="ex">{{ ex }}</span></span></span></span>
             </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.remove_chinese_space" />
               <span>移除中文字符间空格</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_chinese_space.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_chinese_space.examples" :key="ex">{{ ex }}</span></span></span></span>
             </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.normalize_newline" />
               <span>规范化换行符</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.normalize_newline.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.normalize_newline.examples" :key="ex">{{ ex }}</span></span></span></span>
+            </div>
+            <div class="demo-option-item">
+              <input type="checkbox" v-model="cleanOptions.fix_hyphenation" />
+              <span>连字符断行修复</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.fix_hyphenation.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.fix_hyphenation.examples" :key="ex">{{ ex }}</span></span></span></span>
             </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.collapse_whitespace" />
               <span>合并连续空白</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.collapse_whitespace.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.collapse_whitespace.examples" :key="ex">{{ ex }}</span></span></span></span>
             </div>
             <div class="demo-option-item">
               <input type="checkbox" v-model="cleanOptions.remove_empty_lines" />
               <span>移除空行</span>
+              <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_empty_lines.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_empty_lines.examples" :key="ex">{{ ex }}</span></span></span></span>
+            </div>
+            <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+              <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">高级选项</div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.filter_watermark" />
+                <span>水印文本过滤</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_watermark.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_watermark.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div v-if="cleanOptions.filter_watermark" class="demo-option-item" style="padding-left:20px;flex-direction:column;align-items:flex-start;gap:4px">
+                <span style="font-size:0.78rem;color:var(--text-muted)">自定义关键词（逗号分隔）</span>
+                <input type="text" v-model="cleanOptions.watermark_keywords" placeholder="例如：内部资料,仅供查看" class="watermark-keywords-input" />
+              </div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.deduplicate_paragraphs" />
+                <span>段落去重</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.deduplicate_paragraphs.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.deduplicate_paragraphs.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div v-if="cleanOptions.deduplicate_paragraphs" class="demo-option-item" style="padding-left:20px">
+                <input type="checkbox" v-model="cleanOptions.dedup_fuzzy" />
+                <span style="font-size:0.78rem">模糊去重</span>
+              </div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.clean_table" />
+                <span>表格清洗</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.clean_table.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.clean_table.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.mask_sensitive" />
+                <span>敏感信息脱敏</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.mask_sensitive.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.mask_sensitive.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div class="demo-option-item">
+                <input type="checkbox" v-model="cleanOptions.filter_special_chars" />
+                <span>特殊字符过滤（白名单）</span>
+                <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_special_chars.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_special_chars.examples" :key="ex">{{ ex }}</span></span></span></span>
+              </div>
+              <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+                <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">结构级选项</div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.filter_toc" />
+                  <span>目录区域过滤</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_toc.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_toc.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.filter_page_numbers" />
+                  <span>页码过滤</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_page_numbers.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_page_numbers.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.process_footnotes" />
+                  <span>脚注/尾注处理</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.process_footnotes.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.process_footnotes.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div v-if="cleanOptions.process_footnotes" class="demo-option-item" style="padding-left:20px">
+                  <span style="font-size:0.78rem;color:var(--text-muted)">操作</span>
+                  <select v-model="cleanOptions.footnote_action" style="margin-left:8px;font-size:0.78rem;padding:2px 4px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-primary);color:var(--text-primary)">
+                    <option value="remove">移除</option>
+                    <option value="keep">保留</option>
+                  </select>
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+                <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">HTML 选项</div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.remove_html_comments" />
+                  <span>HTML 注释移除</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_html_comments.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_html_comments.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.normalize_html_entities" />
+                  <span>HTML 实体转换</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.normalize_html_entities.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.normalize_html_entities.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.filter_html_noise" />
+                  <span>网页噪声过滤</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.filter_html_noise.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.filter_html_noise.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div v-if="cleanOptions.filter_html_noise" class="demo-option-item" style="padding-left:20px;flex-direction:column;align-items:flex-start;gap:4px">
+                  <span style="font-size:0.78rem;color:var(--text-muted)">自定义噪声正则（逗号分隔）</span>
+                  <input type="text" v-model="cleanOptions.html_noise_patterns" placeholder="例如：广告位.*，推广链接.*" class="watermark-keywords-input" />
+                </div>
+                <div v-if="cleanOptions.filter_html_noise" class="demo-option-item" style="padding-left:20px;flex-direction:column;align-items:flex-start;gap:4px">
+                  <span style="font-size:0.78rem;color:var(--text-muted)">自定义广告关键词（逗号分隔）</span>
+                  <input type="text" v-model="cleanOptions.html_ad_keywords" placeholder="例如：限时优惠,点击购买" class="watermark-keywords-input" />
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+                <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">🏦 保险选项</div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.normalize_clause_numbering" />
+                  <span>条款编号标准化</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.normalize_clause_numbering.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.normalize_clause_numbering.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.preserve_policy_meta" />
+                  <span>保单元数据保留</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.preserve_policy_meta.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.preserve_policy_meta.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.merge_broken_clauses" />
+                  <span>跨页条款合并</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.merge_broken_clauses.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.merge_broken_clauses.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.fix_ocr_numbering" />
+                  <span>OCR 编号修复</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.fix_ocr_numbering.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.fix_ocr_numbering.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.clean_insurance_table" />
+                  <span>保险表格专项清洗</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.clean_insurance_table.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.clean_insurance_table.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px">
+                <div style="font-size:0.78rem;color:var(--accent-orange);margin-bottom:4px;font-weight:500">Markdown 选项</div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.clean_markdown_links" />
+                  <span>Markdown 链接清理</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.clean_markdown_links.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.clean_markdown_links.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.remove_md_escapes" />
+                  <span>Markdown 转义移除</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.remove_md_escapes.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.remove_md_escapes.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+                <div class="demo-option-item">
+                  <input type="checkbox" v-model="cleanOptions.clean_md_structure" />
+                  <span>Markdown 结构清理</span>
+                  <span class="rule-info-trigger" tabindex="0">ℹ<span class="rule-info-tooltip"><span class="tooltip-desc">{{ CLEAN_RULE_DESCRIPTIONS.clean_md_structure.desc }}</span><span class="tooltip-examples"><span class="example-label">示例</span><span class="example-item" v-for="ex in CLEAN_RULE_DESCRIPTIONS.clean_md_structure.examples" :key="ex">{{ ex }}</span></span></span></span>
+                </div>
+              </div>
             </div>
             <button class="demo-action-btn" @click="runCleaning">
               <span>▶</span> 执行清洗
             </button>
-            <div class="highlight-block" style="font-size:0.82rem;margin-top:8px">
-              FastGPT 的清洗流程会将文档原始输出转换为更干净、更适合分块的文本格式。
-            </div>
           </template>
 
           <!-- Step 3 Options: 文本分块 -->
@@ -391,7 +539,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3002'
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 const fileInput = ref(null)
 const activeStep = ref(0)
@@ -404,6 +552,10 @@ const convertResults = ref([])
 const mdConversionNote = ref('')
 const cleanedText = ref('')
 const textBeforeClean = ref('')
+
+function stripCleanTags(text) {
+  return text.replace(/\[L[123]\]/g, '').replace(/\[META:[^\]]+\]/g, '').replace(/\[\/META\]/g, '')
+}
 const chunks = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
@@ -418,11 +570,183 @@ const sheetNames = ref([])
 
 const cleanOptions = ref({
   trim: true,
+  normalize_unicode: true,
+  remove_invisible_chars: true,
   remove_chinese_space: true,
   normalize_newline: true,
+  fix_hyphenation: true,
   collapse_whitespace: true,
-  remove_empty_lines: true
+  remove_empty_lines: true,
+  remove_html_comments: false,
+  normalize_html_entities: false,
+  filter_html_noise: false,
+  html_noise_patterns: '',
+  html_ad_keywords: '',
+  filter_watermark: false,
+  watermark_keywords: '',
+  filter_toc: false,
+  filter_page_numbers: false,
+  process_footnotes: false,
+  footnote_action: 'remove',
+  deduplicate_paragraphs: false,
+  dedup_fuzzy: false,
+  clean_table: false,
+  clean_markdown_links: true,
+  remove_md_escapes: true,
+  clean_md_structure: true,
+  mask_sensitive: false,
+  filter_special_chars: false,
+  normalize_clause_numbering: true,
+  preserve_policy_meta: true,
+  merge_broken_clauses: true,
+  fix_ocr_numbering: true,
+  clean_insurance_table: false
 })
+
+const CLEAN_PROFILES = {
+  default: { label: '默认', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  pdf_academic: { label: '学术论文 PDF', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: true, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  pdf_business: { label: '商务 PDF', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: true, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  docx_report: { label: 'DOCX 报告', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: false, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  table_data: { label: '表格数据', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: true, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  legal: { label: '法律文书', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: false, watermark_keywords: '', filter_toc: true, filter_page_numbers: false, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  web_content: { label: '网页内容', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: true, normalize_html_entities: true, filter_html_noise: true, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: false, process_footnotes: false, footnote_action: 'remove', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: false, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: false, preserve_policy_meta: false, merge_broken_clauses: false, fix_ocr_numbering: false, clean_insurance_table: false } },
+  insurance: { label: '保险条款/合同', options: { trim: true, normalize_unicode: true, remove_invisible_chars: true, remove_chinese_space: true, normalize_newline: true, fix_hyphenation: true, collapse_whitespace: true, remove_empty_lines: true, remove_html_comments: false, normalize_html_entities: false, filter_html_noise: false, html_noise_patterns: '', html_ad_keywords: '', filter_watermark: true, watermark_keywords: '', filter_toc: false, filter_page_numbers: true, process_footnotes: true, footnote_action: 'keep', deduplicate_paragraphs: false, dedup_fuzzy: false, clean_table: true, clean_markdown_links: true, remove_md_escapes: true, clean_md_structure: true, mask_sensitive: false, filter_special_chars: false, normalize_clause_numbering: true, preserve_policy_meta: true, merge_broken_clauses: true, fix_ocr_numbering: true, clean_insurance_table: false } },
+  custom: { label: '自定义', options: null },
+}
+
+const selectedProfile = ref('default')
+
+function applyProfile(profileName) {
+  const profile = CLEAN_PROFILES[profileName]
+  if (profile && profile.options) {
+    Object.assign(cleanOptions.value, JSON.parse(JSON.stringify(profile.options)))
+    selectedProfile.value = profileName
+  }
+}
+
+function isOptionsEqual(a, b) {
+  if (!b) return false
+  return Object.keys(b).every(key => a[key] === b[key])
+}
+
+watch(cleanOptions, (newVal) => {
+  const currentProfile = CLEAN_PROFILES[selectedProfile.value]
+  if (currentProfile && currentProfile.options && !isOptionsEqual(newVal, currentProfile.options)) {
+    selectedProfile.value = 'custom'
+  }
+}, { deep: true })
+
+const CLEAN_RULE_DESCRIPTIONS = {
+  trim: {
+    desc: '移除文本开头和结尾的空白字符（空格、Tab、换行等）',
+    examples: ['  hello  → hello', '\\t文本\\t → 文本']
+  },
+  normalize_unicode: {
+    desc: '使用 NFKC 形式统一全角/半角字符和兼容性字符，确保文本检索一致性',
+    examples: ['ＡＢＣ → ABC', '１２３ → 123', '！？ → !?', '①②③ → 123', 'ﬁ → fi']
+  },
+  remove_invisible_chars: {
+    desc: '移除零宽空格(U+200B)、BOM(U+FEFF)、软连字符(U+00AD)等不可见但影响匹配的字符',
+    examples: ['hello\\u200Bworld → helloworld', '\\uFEFF文本 → 文本', 'soft\\u00ADhyphen → softhyphen']
+  },
+  remove_chinese_space: {
+    desc: '移除中文字符之间的多余空格，保留中英文混排时的必要空格',
+    examples: ['你好 世界 → 你好世界', 'hello 世界 → hello 世界']
+  },
+  normalize_newline: {
+    desc: '将 Windows(\\r\\n) 和旧 Mac(\\r) 换行符统一为 Unix 格式(\\n)',
+    examples: ['行1\\r\\n行2 → 行1\\n行2', '行1\\r行2 → 行1\\n行2']
+  },
+  fix_hyphenation: {
+    desc: '修复 PDF 提取中因断行产生的连字符分割，还原完整单词',
+    examples: ['com-\\nputer → computer', 'awe-\\nsome → awesome']
+  },
+  collapse_whitespace: {
+    desc: '将 2 个及以上连续非换行空白字符合并为 1 个空格',
+    examples: ['hello    world → hello world', 'a  \\t  b → a b']
+  },
+  remove_empty_lines: {
+    desc: '将 3 行及以上连续换行压缩为 2 行，保留段落分隔',
+    examples: ['行1\\n\\n\\n\\n行2 → 行1\\n\\n行2']
+  },
+  mask_sensitive: {
+    desc: '使用占位符替换身份证号、银行卡号、护照号、军官证、手机号、邮箱、IP 地址等敏感信息（默认关闭）',
+    examples: ['13812345678 → ***PHONE***', 'test@mail.com → ***EMAIL***', '110101199001011234 → ***IDCARD***', '6222021234567890 → ***BANKCARD***', 'E12345678 → ***PASSPORT***']
+  },
+  filter_special_chars: {
+    desc: '仅保留中文、英文、数字、常用标点和括号，移除异常符号和乱码字符（默认关闭）',
+    examples: ['你好★世界 → 你好世界', 'test♦123 → test123', '中文，标点！ → 中文，标点！']
+  },
+  filter_watermark: {
+    desc: '过滤文档中的水印文本，检测重复出现的短行和内置水印关键词（如 CONFIDENTIAL、机密等）（默认关闭）',
+    examples: ['重复3次的"CONFIDENTIAL" → 移除', '含"机密"的短行 → 移除', '支持自定义关键词']
+  },
+  deduplicate_paragraphs: {
+    desc: '检测并移除重复段落，支持精确哈希去重和可选的模糊去重（基于编辑距离相似度）（默认关闭）',
+    examples: ['完全相同的段落 → 保留一个', '相似度≥90%的段落 → 可选移除', '模糊去重需单独开启']
+  },
+  clean_table: {
+    desc: '清洗 Markdown 表格，移除全空行和全空列，确保表头结构正确（默认关闭）',
+    examples: ['| | | → 移除空行', '空列 → 移除空列', '保留有效数据和表头']
+  },
+  filter_toc: {
+    desc: '检测并移除自动生成的目录区域，需连续 ≥3 行目录条目才触发过滤（默认关闭）',
+    examples: ['1.1 概述 .... 12 → 移除', '第一章 引言 → 移除', '附录A 数据表 → 移除']
+  },
+  filter_page_numbers: {
+    desc: '移除独立成行的页码文本，如纯数字行、带横线页码、中文/英文页码（默认关闭）',
+    examples: ['独立行 "12" → 移除', '- 5 - → 移除', '第 12 页 → 移除', 'Page 42 → 移除']
+  },
+  process_footnotes: {
+    desc: '识别脚注/尾注标记（如[1]、①），可选移除或保留脚注内容行（默认关闭）',
+    examples: ['[1] 脚注说明 → 可移除', '①注释内容 → 可移除', '支持保留模式']
+  },
+  remove_html_comments: {
+    desc: '移除 HTML 注释标记（<!-- ... -->），包括多行注释',
+    examples: ['<!-- comment --> → 移除', '多行注释 → 移除']
+  },
+  normalize_html_entities: {
+    desc: '将 HTML 命名实体（&amp;等）和数字引用（&#65;等）转换为 Unicode 字符',
+    examples: ['&amp; → &', '&nbsp; → 空格', '&copy; → ©', '&#65; → A']
+  },
+  filter_html_noise: {
+    desc: '移除版权声明、ICP备案、免责声明、广告关键词等网页噪声内容（默认关闭）',
+    examples: ['copyright © 2024 → 移除', '沪ICP备xxx号 → 移除', '免责声明：... → 移除']
+  },
+  clean_markdown_links: {
+    desc: '移除 Markdown 链接文本中的换行符，确保链接格式正确',
+    examples: ['[hello\\nworld](url) → [helloworld](url)']
+  },
+  remove_md_escapes: {
+    desc: '移除不必要的 Markdown 反斜杠转义，还原被转义的字符',
+    examples: ['\\*bold\\* → *bold*', '\\#heading → #heading']
+  },
+  clean_md_structure: {
+    desc: '移除 Markdown 结构元素（标题、代码块）前的多余空格',
+    examples: ['  ## heading → ## heading', '  ```python → ```python']
+  },
+  normalize_clause_numbering: {
+    desc: '检测保险条款的层级编号（第X条/一、/1.），在原编号后附加层级标记 [L1][L2][L3]，便于下游识别条款边界（默认启用）',
+    examples: ['第三条 保险责任 → 第三条[L1] 保险责任', '一、基本保障 → 一、[L2] 基本保障', '1. 住院医疗 → 1. [L3] 住院医疗']
+  },
+  preserve_policy_meta: {
+    desc: '检测保单元数据（保单号、合同编号、投保人/被保人姓名），用 [META:*] 语义标记包裹，防止被页码过滤等规则误删（默认启用）',
+    examples: ['保单号：P20240101 → 保单号：[META:policy_no]P20240101[/META]', '被保人：张三 → 被保人：[META:insured]张三[/META]']
+  },
+  merge_broken_clauses: {
+    desc: '合并因翻页被截断的条款文本，将不以句号结尾的行与下一行拼接为完整条款（默认启用）',
+    examples: ['"保险人不承\\n担给付责任。" → "保险人不承担给付责任。"']
+  },
+  fix_ocr_numbering: {
+    desc: '修复扫描件 OCR 后的条款编号错误：小写 l→1、字母 O→0、英文标点→中文标点。仅在条款编号上下文中生效，不影响正文（默认启用）',
+    examples: ['第 l2 条 → 第 12 条', '第 1O 条 → 第 10 条', '一, 基本 → 一、基本']
+  },
+  clean_insurance_table: {
+    desc: '保险表格专项清洗：保留注释行（"注："开头）和合计行（含"合计"关键词），合并单元格检测后展开（默认关闭，需搭配 clean_table 使用）',
+    examples: ['注：以上费率为每千元保额 → 保留', '合计 1000 元 → 保留']
+  }
+}
 
 const chunkParams = ref({
   chunkSize: 500,
@@ -440,18 +764,31 @@ const steps = [
 
 const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']
 
+const ENGINE_LABELS = {
+  fastgpt: 'FastGPT 默认',
+  mineru: 'MinerU (本地)',
+  mineru_saas: 'MinerU (SaaS)',
+  mineru_precision: 'MinerU (Precision)',
+  unstructured: 'Unstructured-API',
+  marker: 'Marker',
+  docling: 'Docling',
+  'opendataloader-pdf': 'OpenDataLoader-PDF'
+}
+
 const isImageFile = computed(() => {
   return fileInfo.value ? IMAGE_EXTS.includes(fileInfo.value.ext) : false
 })
 
 const selectedEngine = ref('fastgpt')
 const engineResults = ref({})
+const headerFooterRatio = ref(0.05)
 const MINERU_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp']
 const MINERU_SAAS_SUPPORTED_EXTS = ['pdf', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg', 'jp2', 'webp', 'gif', 'bmp']
 const MINERU_PRECISION_SUPPORTED_EXTS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'jp2', 'webp', 'gif', 'bmp']
 const UNSTRUCTURED_SUPPORTED_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'csv', 'xlsx', 'xls', 'txt', 'md', 'html']
 const MARKER_SUPPORTED_EXTS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'epub']
 const DOCLING_SUPPORTED_EXTS = ['pdf', 'docx', 'xlsx', 'pptx', 'txt', 'md', 'markdown', 'html', 'htm', 'csv', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff', 'tif']
+const OPENLOADER_SUPPORTED_EXTS = ['pdf']
 
 const mdTools = [
   { value: 'markitdown', label: 'MarkItDown' },
@@ -500,6 +837,11 @@ const isDoclingAvailable = computed(() => {
   return DOCLING_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
 })
 
+const isOpenLoaderAvailable = computed(() => {
+  if (!fileInfo.value) return false
+  return OPENLOADER_SUPPORTED_EXTS.includes(fileInfo.value.ext.toLowerCase())
+})
+
 const engines = computed(() => {
   const list = [{ value: 'fastgpt', label: 'FastGPT 默认' }]
   if (isMineruAvailable.value) {
@@ -519,6 +861,9 @@ const engines = computed(() => {
   }
   if (isDoclingAvailable.value) {
     list.push({ value: 'docling', label: 'Docling' })
+  }
+  if (isOpenLoaderAvailable.value) {
+    list.push({ value: 'opendataloader-pdf', label: 'OpenDataLoader-PDF' })
   }
   return list
 })
@@ -562,6 +907,11 @@ const avgChunkSize = computed(() => {
 const isDocxHtmlMode = computed(() => {
   const ext = fileInfo.value?.ext
   return (ext === 'docx' || ext === 'doc' || ext === 'html' || ext === 'htm') && parseMethod.value === 'html'
+})
+
+const isParsedHtmlContent = computed(() => {
+  if (selectedEngine.value === 'opendataloader-pdf') return false
+  return parseMethod.value === 'html'
 })
 
 const mdConversionMethod = computed(() => {
@@ -646,28 +996,30 @@ function processFile(file) {
   }
 }
 
-async function apiCall(path, options, timeout = 300000) {
+async function apiCall(path, options, defaultTimeout = 300000) {
   errorMsg.value = ''
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeout)
-
+  const effectiveTimeout = (options && options.timeout) || defaultTimeout
+  if (options && options.timeout) delete options.timeout
+  const timer = setTimeout(() => controller.abort(), effectiveTimeout)
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      signal: controller.signal,
-    })
-    clearTimeout(timeoutId)
+    const res = await fetch(`${API_BASE}${path}`, { ...options, signal: controller.signal })
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({ detail: res.statusText }))
       throw new Error(errBody.detail || `HTTP ${res.status}`)
     }
     return res.json()
   } catch (err) {
-    clearTimeout(timeoutId)
     if (err.name === 'AbortError') {
-      throw new Error('请求超时，请稍后重试')
+      throw new Error(`请求超时（${effectiveTimeout / 1000}秒），服务器仍在处理中`)
+    }
+    if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
+      const port = API_BASE.split(':').pop() || '8000'
+      throw new Error(`无法连接到后端服务，请确认 API 服务已启动（端口 ${port}）`)
     }
     throw err
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -675,19 +1027,43 @@ async function runParse() {
   if (!uploadedFile.value) return
   loading.value = true
   try {
-    const formData = new FormData()
-    formData.append('file', uploadedFile.value)
-    formData.append('method', 'auto')
-    formData.append('engine', selectedEngine.value)
+    const currentEngine = selectedEngine.value
 
-    const data = await apiCall('/api/parse', { method: 'POST', body: formData })
+    if (currentEngine === 'opendataloader-pdf') {
+      const [fastgptData, odlData] = await Promise.all([
+        apiCall('/api/parse', {
+          method: 'POST',
+          body: (() => { const fd = new FormData(); fd.append('file', uploadedFile.value); fd.append('method', 'auto'); fd.append('engine', 'fastgpt'); fd.append('header_footer_ratio', headerFooterRatio.value); return fd })(),
+          timeout: 120000,
+        }),
+        apiCall('/api/parse', {
+          method: 'POST',
+          body: (() => { const fd = new FormData(); fd.append('file', uploadedFile.value); fd.append('method', 'auto'); fd.append('engine', 'opendataloader-pdf'); fd.append('header_footer_ratio', headerFooterRatio.value); return fd })(),
+          timeout: 300000,
+        }),
+      ])
+      engineResults.value['fastgpt'] = fastgptData
+      engineResults.value['opendataloader-pdf'] = odlData
 
-    rawText.value = data.raw_text || ''
-    formatText.value = data.format_text || ''
-    parsedResult.value = data.html_preview || ''
-    sheetNames.value = data.sheet_names || []
-    if (data.results) {
-      engineResults.value[selectedEngine.value] = data
+      rawText.value = odlData.raw_text || ''
+      formatText.value = odlData.format_text || ''
+      parsedResult.value = odlData.html_preview || odlData.format_text || odlData.raw_text || ''
+      sheetNames.value = odlData.sheet_names || fastgptData.sheet_names || []
+    } else {
+      const formData = new FormData()
+      formData.append('file', uploadedFile.value)
+      formData.append('method', 'auto')
+      formData.append('engine', currentEngine)
+      formData.append('header_footer_ratio', headerFooterRatio.value)
+
+      const data = await apiCall('/api/parse', { method: 'POST', body: formData, timeout: 120000 })
+
+      rawText.value = data.raw_text || ''
+      formatText.value = data.format_text || ''
+      parsedResult.value = data.html_preview || data.format_text || data.raw_text || ''
+      sheetNames.value = data.sheet_names || []
+
+      engineResults.value[currentEngine] = data
     }
 
     if (sheetNames.value.length > 0 && !selectedSheet.value) {
@@ -746,12 +1122,29 @@ async function runCleaning() {
 
   loading.value = true
   try {
+    const opts = { ...cleanOptions.value }
+    if (opts.watermark_keywords && typeof opts.watermark_keywords === 'string') {
+      opts.watermark_keywords = opts.watermark_keywords.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    } else {
+      opts.watermark_keywords = []
+    }
+    if (opts.html_noise_patterns && typeof opts.html_noise_patterns === 'string') {
+      opts.html_noise_patterns = opts.html_noise_patterns.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    } else {
+      opts.html_noise_patterns = []
+    }
+    if (opts.html_ad_keywords && typeof opts.html_ad_keywords === 'string') {
+      opts.html_ad_keywords = opts.html_ad_keywords.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    } else {
+      opts.html_ad_keywords = []
+    }
     const data = await apiCall('/api/clean', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: source,
-        options: { ...cleanOptions.value }
+        options: opts,
+        profile: selectedProfile.value
       })
     })
     cleanedText.value = data.cleaned || ''
@@ -1131,6 +1524,103 @@ watch(parseMethod, async () => {
   accent-color: var(--accent-cyan);
   width: 15px;
   height: 15px;
+}
+
+.watermark-keywords-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.watermark-keywords-input:focus {
+  border-color: var(--accent-cyan);
+}
+
+/* Rule info tooltip */
+.rule-info-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  font-style: italic;
+  cursor: help;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.rule-info-trigger:hover,
+.rule-info-trigger:focus {
+  background: var(--accent-cyan);
+  color: #fff;
+  outline: none;
+}
+
+.rule-info-tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 260px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+  text-align: left;
+}
+
+.rule-info-trigger:hover .rule-info-tooltip,
+.rule-info-trigger:focus .rule-info-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-desc {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.tooltip-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.example-label {
+  font-size: 0.7rem;
+  color: var(--accent-cyan);
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.example-item {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 .demo-action-btn {

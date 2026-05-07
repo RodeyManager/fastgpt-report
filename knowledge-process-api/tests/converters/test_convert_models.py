@@ -11,9 +11,9 @@ from app import ConvertRequest, ConvertResponse, ToolResult
 # ---------------------------------------------------------------------------
 
 def test_convert_request_default_tools():
-    """ConvertRequest with no tools arg defaults to ["markdownify"]."""
+    """ConvertRequest with no tools arg defaults to ["markitdown"]."""
     req = ConvertRequest(raw_text="hello", format_text="<p>hello</p>", file_ext="html")
-    assert req.tools == ["markdownify"]
+    assert req.tools == ["markitdown"]
 
 
 def test_convert_request_custom_tools():

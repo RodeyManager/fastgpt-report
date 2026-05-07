@@ -9,13 +9,14 @@ Endpoints:
   GET  /api/health      — Health check
 
 Run:
-  uvicorn app:app --reload --port 3002
+  uvicorn app:app --reload --port 8000
 """
 
 from __future__ import annotations
 
 import os
 import sys
+import traceback
 from pathlib import Path
 from typing import Optional
 
@@ -104,15 +105,47 @@ class ConvertResponse(BaseModel):
 
 class CleanOptions(BaseModel):
     trim: bool = True
+    normalize_unicode: bool = True
+    remove_invisible_chars: bool = True
     remove_chinese_space: bool = True
     normalize_newline: bool = True
+    fix_hyphenation: bool = True
     collapse_whitespace: bool = True
     remove_empty_lines: bool = True
+    filter_watermark: bool = False
+    watermark_keywords: list[str] = []
+    watermark_min_repeat: int = 2
+    watermark_max_line_length: int = 30
+    deduplicate_paragraphs: bool = False
+    dedup_fuzzy: bool = False
+    dedup_fuzzy_threshold: float = 0.9
+    clean_table: bool = False
+    mask_sensitive: bool = False
+    filter_special_chars: bool = False
+    clean_markdown_links: bool = True
+    remove_md_escapes: bool = True
+    clean_md_structure: bool = True
+    filter_toc: bool = False
+    filter_page_numbers: bool = False
+    process_footnotes: bool = False
+    footnote_action: str = "remove"
+    remove_html_comments: bool = False
+    normalize_html_entities: bool = False
+    filter_html_noise: bool = False
+    html_noise_patterns: list[str] = []
+    html_ad_keywords: list[str] = []
+    normalize_clause_numbering: bool = False
+    preserve_policy_meta: bool = False
+    merge_broken_clauses: bool = False
+    fix_ocr_numbering: bool = False
+    clean_insurance_table: bool = False
+    insurance_mode: bool = False
 
 
 class CleanRequest(BaseModel):
     text: str
     options: CleanOptions = Field(default_factory=CleanOptions)
+    profile: str = "default"
 
 
 class CleanResponse(BaseModel):
@@ -158,16 +191,48 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+async def _run_parse_async(buffer: bytes, filename: str, method: str, engine: str,
+                          header_footer_ratio: float, remove_html_noise: bool):
+    """异步解析（仅 opendataloader-pdf），直接 await 不阻塞事件循环。"""
+    from fastgpt_demo.parsers.opendataloader_pdf_parser import parse_opendataloader_pdf_async
+    return await parse_opendataloader_pdf_async(buffer)
+
+
 @app.post("/api/parse", response_model=ParseResponse)
 async def parse(
     file: UploadFile = File(...),
     method: str = Form("auto"),
-    engine: str = Form("fastgpt"),
+    engine: str = Form("fastgpt", description="解析引擎，支持 fastgpt / mineru / opendataloader-pdf"),
+    header_footer_ratio: float = Form(0.05),
+    remove_html_noise: bool = Form(True),
 ):
-    """Parse an uploaded document and extract raw text, formatted text, etc."""
+    """Parse an uploaded document and extract raw text, formatted text, etc.
+
+    Args:
+        header_footer_ratio: Fraction of page height to filter as header/footer
+            (PDF only). Default 0.05 (5%). Set to 0 to disable.
+        remove_html_noise: Remove noise tags (nav/footer/header/aside/etc.) from
+            HTML files. Default True.
+    """
     try:
         buffer = await file.read()
-        result: ParseResult = parse_file(buffer, file.filename or "unknown.txt", method, engine)
+        filename = file.filename or "unknown.txt"
+        print(f"[parse] 收到请求 engine={engine} file={filename} size={len(buffer)}", flush=True)
+
+        if engine == "opendataloader-pdf":
+            print(f"[parse] 异步调用 OpenDataLoader-PDF 解析器...", flush=True)
+            result: ParseResult = await _run_parse_async(
+                buffer, filename, method, engine,
+                header_footer_ratio, remove_html_noise,
+            )
+        else:
+            result: ParseResult = parse_file(
+                buffer, filename, method, engine,
+                header_footer_ratio=header_footer_ratio,
+                remove_html_noise=remove_html_noise,
+            )
+
+        print(f"[parse] 完成 raw_text={len(result.raw_text)} chars", flush=True)
         return ParseResponse(
             raw_text=result.raw_text,
             format_text=result.format_text,
@@ -177,8 +242,11 @@ async def parse(
             results=result.results,
         )
     except ValueError as exc:
+        print(f"[parse] ValueError: {exc}", flush=True)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        print(f"[parse] 解析失败: {exc}", flush=True)
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Parse failed: {exc}") from exc
 
 
@@ -198,7 +266,14 @@ async def convert(req: ConvertRequest):
 async def clean(req: CleanRequest):
     """Clean text with configurable options."""
     try:
-        cleaned = clean_text(req.text, req.options.model_dump())
+        from fastgpt_demo.cleaners.profiles import get_profile as _get_profile
+        opts = req.options.model_dump(exclude_unset=True)
+        p = _get_profile(req.profile) or _get_profile("default")
+        if p:
+            profile_opts = p.to_options_dict()
+            profile_opts.update(opts)
+            opts = profile_opts
+        cleaned = clean_text(req.text, opts)
         return CleanResponse(cleaned=cleaned)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Clean failed: {exc}") from exc

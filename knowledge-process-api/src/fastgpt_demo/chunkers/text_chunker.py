@@ -12,6 +12,7 @@ Ported behaviorally — same inputs produce same outputs.
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Dict, List, Optional
 
 # ---------------------------------------------------------------------------
@@ -45,12 +46,15 @@ def _simple_text(text: str = "") -> str:
     final chunk before returning to the caller.
     """
     text = text.strip()
+    text = unicodedata.normalize("NFKC", text)
+    text = re.sub(r"[\u200b\u200c\u200d\u200e\u200f\u00ad\u034f\u061c\u180e\ufeff\ufff9\ufffa\ufffb]", "", text)
     # Remove spaces between CJK characters (but keep newlines)
     text = re.sub(r"([\u4e00-\u9fa5])[^\S\n]+([\u4e00-\u9fa5])", r"\1\2", text)
     text = re.sub(r"\r\n|\r", "\n", text)
+    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"[^\S\n]{2,}", " ", text)
-    text = re.sub(r"[\x00-\x08]", " ", text)
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", " ", text)
     return text
 
 
