@@ -9,7 +9,7 @@ Endpoints:
   GET  /api/health      — Health check
 
 Run:
-  uvicorn app:app --reload --port 8000
+  uvicorn app:app --reload --port 3002
 """
 
 from __future__ import annotations
