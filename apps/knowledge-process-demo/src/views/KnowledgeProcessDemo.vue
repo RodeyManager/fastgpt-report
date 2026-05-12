@@ -88,7 +88,7 @@
           <span class="stat-label">缩减率</span>
         </div>
         <div class="stat-item" v-if="activeStep === 3">
-          <span class="stat-value">{{ chunks.length }}</span>
+          <span class="stat-value">{{ currentResult?.chunks?.length || 0 }}</span>
           <span class="stat-label">分块数量</span>
         </div>
         <div class="stat-item" v-if="activeStep === 3">
@@ -96,8 +96,16 @@
           <span class="stat-label">平均块大小</span>
         </div>
         <div class="stat-item" v-if="activeStep === 3">
-          <span class="stat-value">{{ cleanedText.length }}</span>
+          <span class="stat-value">{{ currentResult?.chars || 0 }}</span>
           <span class="stat-label">总字符数</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 3 && currentResult?.strategy">
+          <span class="stat-value" style="font-size:0.85rem">{{ strategyLabels[currentResult.strategy] || currentResult.strategy }}</span>
+          <span class="stat-label">当前算法</span>
+        </div>
+        <div class="stat-item" v-if="activeStep === 3 && currentResult?.duration_ms">
+          <span class="stat-value">{{ currentResult.duration_ms.toFixed(1) }}ms</span>
+          <span class="stat-label">耗时</span>
         </div>
       </div>
 
@@ -185,16 +193,13 @@
 
           <!-- Step 3: 文本分块 -->
           <div v-if="activeStep === 3">
-            <div v-if="chunks.length > 0">
-              <div v-for="(chunk, idx) in chunks" :key="idx" class="demo-chunk-item">
-                <div class="chunk-header">
-                  <span class="chunk-index">Chunk #{{ idx + 1 }}</span>
-                  <span class="chunk-size">{{ chunk.length }} 字符</span>
-                </div>
-                <div class="chunk-text">{{ chunk }}</div>
-              </div>
-            </div>
-            <div v-else class="empty-state">请先完成数据清洗，再点击「执行分块」</div>
+            <ChunkResultPanel
+              :result="compareMode ? null : currentResult"
+              :resultsMap="compareMode ? Object.fromEntries(results) : {}"
+              :compareMode="compareMode"
+              :strategyLabels="strategyLabels"
+              v-model:activeCompareStrategy="activeCompareStrategy"
+            />
           </div>
 
           <!-- Step 4: 图片索引 -->
@@ -485,25 +490,18 @@
 
           <!-- Step 3 Options: 文本分块 -->
           <template v-if="activeStep === 3">
-            <div class="option-title">分块参数</div>
-            <div class="demo-slider-group">
-              <label>块大小 <span>{{ chunkParams.chunkSize }}</span></label>
-              <input type="range" v-model.number="chunkParams.chunkSize" min="100" max="8000" step="100" />
-            </div>
-            <div class="demo-slider-group">
-              <label>重叠率 <span>{{ (chunkParams.overlapRatio * 100).toFixed(0) }}%</span></label>
-              <input type="range" v-model.number="chunkParams.overlapRatio" min="0" max="0.4" step="0.05" />
-            </div>
-            <div class="demo-slider-group">
-              <label>段落深度 <span>{{ chunkParams.paragraphChunkDeep }}</span></label>
-              <input type="range" v-model.number="chunkParams.paragraphChunkDeep" min="1" max="5" step="1" />
-            </div>
-            <button class="demo-action-btn" @click="runChunking">
-              <span>▶</span> 执行分块
-            </button>
-            <div class="highlight-block" style="font-size:0.82rem;margin-top:8px">
-              递归多级分块策略：依次尝试 Markdown 标题 → 段落 → 标点 → 固定长度，确保语义完整性。
-            </div>
+            <ChunkParamsPanel
+              v-model:strategy="strategy"
+              v-model:params="currentParams"
+              v-model:compareMode="compareMode"
+              v-model:selectedCompareStrategies="selectedCompareStrategies"
+              :strategies="strategies"
+              :strategyLabels="strategyLabels"
+              :loading="chunkLoading"
+              @run="runChunking"
+              @runCompare="runChunking"
+              @reset="resetParams"
+            />
           </template>
 
           <!-- Step 4 Options: 图片索引 -->
@@ -537,7 +535,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useChunking } from '../composables/useChunking.js'
+import ChunkParamsPanel from '../components/ChunkParamsPanel.vue'
+import ChunkResultPanel from '../components/ChunkResultPanel.vue'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -748,11 +749,27 @@ const CLEAN_RULE_DESCRIPTIONS = {
   }
 }
 
-const chunkParams = ref({
-  chunkSize: 500,
-  overlapRatio: 0.2,
-  paragraphChunkDeep: 2
-})
+// 分块模块状态管理
+const {
+  strategy,
+  currentParams,
+  results,
+  strategies,
+  loading: chunkLoading,
+  error: chunkError,
+  currentResult,
+  fetchStrategies,
+  runChunk,
+  runCompare,
+  resetParams,
+  clearResults,
+  strategyLabels
+} = useChunking()
+
+// 对比模式状态
+const compareMode = ref(false)
+const selectedCompareStrategies = ref([])
+const activeCompareStrategy = ref('')
 
 const steps = [
   { label: '文档解析' },
@@ -900,8 +917,9 @@ const parseMethods = computed(() => {
 })
 
 const avgChunkSize = computed(() => {
-  if (chunks.value.length === 0) return 0
-  return Math.round(chunks.value.reduce((s, c) => s + c.length, 0) / chunks.value.length)
+  const chunks = currentResult.value?.chunks
+  if (!chunks || chunks.length === 0) return 0
+  return Math.round(chunks.reduce((s, c) => s + c.length, 0) / chunks.length)
 })
 
 const isDocxHtmlMode = computed(() => {
@@ -963,7 +981,7 @@ function processFile(file) {
     type: file.type
   }
   activeStep.value = 0
-  chunks.value = []
+  clearResults()
   cleanedText.value = ''
   textBeforeClean.value = ''
   markdownText.value = null
@@ -1156,27 +1174,29 @@ async function runCleaning() {
 }
 
 async function runChunking() {
-  if (!cleanedText.value) { chunks.value = []; return }
+  if (!cleanedText.value) { clearResults(); return }
 
-  loading.value = true
-  try {
-    const data = await apiCall('/api/chunk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: cleanedText.value,
-        chunk_size: chunkParams.value.chunkSize,
-        overlap_ratio: chunkParams.value.overlapRatio,
-        paragraph_chunk_deep: chunkParams.value.paragraphChunkDeep
-      })
-    })
-    chunks.value = data.chunks || []
-  } catch (err) {
-    chunks.value = []
-    errorMsg.value = err.message
+  errorMsg.value = ''
+  if (compareMode.value) {
+    if (selectedCompareStrategies.value.length < 2) {
+      errorMsg.value = '对比模式请至少选择两种策略'
+      return
+    }
+    await runCompare(cleanedText.value, selectedCompareStrategies.value)
+    // 默认激活第一个有结果的策略
+    const first = selectedCompareStrategies.value.find(s => results.value.get(s))
+    if (first) activeCompareStrategy.value = first
+  } else {
+    await runChunk(cleanedText.value)
   }
-  loading.value = false
+  if (chunkError.value) {
+    errorMsg.value = chunkError.value
+  }
 }
+
+onMounted(() => {
+  fetchStrategies()
+})
 
 async function runImageIndex() {
   if (!uploadedFile.value || !isImageFile.value) return

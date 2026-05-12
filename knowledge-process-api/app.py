@@ -20,6 +20,7 @@ import traceback
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
 # Load .env file from project root (parent of knowledge-process-api directory)
 _env_file = Path(__file__).resolve().parent.parent / ".env"
 if _env_file.exists():
@@ -31,6 +32,12 @@ if _env_file.exists():
                 os.environ.setdefault(key, value)
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+
+# 加载 .env 文件中的环境变量（本地开发时使用）
+# 若系统已存在同名环境变量，则不会覆盖
+_ENV_PATH = Path(__file__).resolve().parent / ".env"
+if _ENV_PATH.exists():
+    load_dotenv(dotenv_path=_ENV_PATH, override=False)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
@@ -44,7 +51,7 @@ if str(_SRC) not in sys.path:
 from fastgpt_demo.parsers import ParseResult, parse_file  # noqa: E402
 from fastgpt_demo.converters import convert_to_markdown, convert_to_markdown_multi  # noqa: E402
 from fastgpt_demo.cleaners import clean_text  # noqa: E402
-from fastgpt_demo.chunkers import split_text_2_chunks  # noqa: E402
+from fastgpt_demo.chunkers import ChunkRegistry, STRATEGY_NAMES  # noqa: E402
 from fastgpt_demo.indexers import ImageIndexer  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -154,14 +161,27 @@ class CleanResponse(BaseModel):
 
 class ChunkRequest(BaseModel):
     text: str
+    strategy: str = "recursive"
     chunk_size: int = 500
     overlap_ratio: float = 0.2
     paragraph_chunk_deep: int = 2
+    semantic_threshold: float = 0.75
+    structure_type: str = "markdown"
+
+    @field_validator("strategy")
+    @classmethod
+    def validate_strategy(cls, v):
+        v = v.lower().strip()
+        if v not in STRATEGY_NAMES:
+            raise ValueError(f"Unknown strategy: {v}. Allowed: {STRATEGY_NAMES}")
+        return v
 
 
 class ChunkResponse(BaseModel):
     chunks: list[str]
     chars: int
+    strategy: str = "recursive"
+    duration_ms: float = 0.0
 
 
 class ParseResponse(BaseModel):
@@ -279,17 +299,36 @@ async def clean(req: CleanRequest):
         raise HTTPException(status_code=500, detail=f"Clean failed: {exc}") from exc
 
 
+@app.get("/api/chunk-strategies")
+async def list_chunk_strategies() -> dict[str, list[str]]:
+    """返回所有可用的分块策略标识列表。"""
+    return {"strategies": STRATEGY_NAMES}
+
+
 @app.post("/api/chunk", response_model=ChunkResponse)
 async def chunk(req: ChunkRequest):
-    """Split text into chunks."""
+    """Split text into chunks with selected strategy."""
+    import time
+    start = time.perf_counter()
     try:
-        result = split_text_2_chunks(
-            req.text,
+        strategy = ChunkRegistry.get(req.strategy)
+        result = strategy.split(
+            text=req.text,
             chunk_size=req.chunk_size,
             overlap_ratio=req.overlap_ratio,
             paragraph_chunk_deep=req.paragraph_chunk_deep,
+            semantic_threshold=req.semantic_threshold,
+            structure_type=req.structure_type,
         )
-        return ChunkResponse(chunks=result["chunks"], chars=result["chars"])
+        duration_ms = (time.perf_counter() - start) * 1000
+        return ChunkResponse(
+            chunks=result["chunks"],
+            chars=result["chars"],
+            strategy=req.strategy,
+            duration_ms=round(duration_ms, 2),
+        )
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Chunk failed: {exc}") from exc
 

@@ -20,6 +20,8 @@ dependencies = [
     "requests>=2.33.0",
     "marker-pdf>=1.0.0",
     "docling>=2.0.0",
+    "scikit-learn>=1.4.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [build-system]
