@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 # Load .env file from project root (parent of knowledge-process-api directory)
 _env_file = Path(__file__).resolve().parent.parent / ".env"
 if _env_file.exists():
-    with open(_env_file) as f:
+    with open(_env_file, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:

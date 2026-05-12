@@ -1,76 +1,61 @@
 """
 OpenDataLoader-PDF 解析器
-通过 HTTP 调用本地 Docling Server (http://localhost:5002) 解析 PDF
+使用本地 Docling Python 库直接解析 PDF（无需外部 HTTP 服务）
 """
 
 from __future__ import annotations
 
-import httpx
+import io
+import traceback
+from typing import Optional
+
+from docling.datamodel.base_models import DocumentStream
+from docling.datamodel.document import ConversionResult
+from docling.document_converter import DocumentConverter
 
 from ._types import ParseResult
 
-DOCLING_SERVER_URL = "http://localhost:5002"
-DOCLING_CONVERT_URL = f"{DOCLING_SERVER_URL}/v1/convert/file"
+# 全局转换器实例（懒加载，首次使用时初始化）
+_converter: Optional[DocumentConverter] = None
 
 
-def _extract_texts(doc_json: dict) -> str:
-    """从 DoclingDocument JSON 中提取文本，按页组织"""
-    texts = doc_json.get("texts", [])
-    texts_by_page: dict[int, list[str]] = {}
-    for item in texts:
-        prov_list = item.get("prov", [])
-        if not prov_list:
-            continue
-        page_no = prov_list[0].get("page_no", 0)
-        text = item.get("text", "")
-        if not text:
-            continue
-        texts_by_page.setdefault(page_no, []).append(text)
-
-    pages = []
-    for page_no in sorted(texts_by_page.keys()):
-        page_lines = texts_by_page[page_no]
-        pages.append("\n".join(page_lines))
-
-    return "\n\n".join(pages)
+def _get_converter() -> DocumentConverter:
+    """获取或初始化 DocumentConverter 实例。"""
+    global _converter
+    if _converter is None:
+        _converter = DocumentConverter()
+    return _converter
 
 
-def _extract_tables_as_markdown(doc_json: dict) -> str:
-    """将 DoclingDocument 中的表格转为 Markdown"""
-    tables = doc_json.get("tables", [])
-    if not tables:
+def _extract_text_from_result(result: ConversionResult) -> str:
+    """从 Docling 转换结果中提取纯文本内容。"""
+    doc = result.document
+    if not doc:
         return ""
+    
+    # 使用 export_to_text 获取纯文本
+    return doc.export_to_text()
 
+
+def _extract_tables_as_markdown(result: ConversionResult) -> str:
+    """从 Docling 转换结果中提取表格并转为 Markdown。"""
+    doc = result.document
+    if not doc or not doc.tables:
+        return ""
+    
     md_tables = []
-    for table in tables:
-        data = table.get("data", [])
-        if not data:
+    for table in doc.tables:
+        try:
+            # 尝试导出为 DataFrame，然后转为 Markdown
+            import pandas as pd
+            df = table.export_to_dataframe(doc=doc)
+            if df is not None and not df.empty:
+                md_table = df.to_markdown(index=False)
+                md_tables.append(md_table)
+        except Exception:
+            # 如果表格导出失败，跳过
             continue
-        num_cols = max(len(row) for row in data) if data else 0
-        if num_cols == 0:
-            continue
-
-        grid = []
-        for row in data:
-            grid_row = []
-            for cell in row:
-                cell_text = cell.get("text", "")
-                grid_row.append(cell_text)
-            grid.append(grid_row)
-
-        if not grid:
-            continue
-
-        lines = []
-        header = grid[0]
-        lines.append("| " + " | ".join(header) + " |")
-        lines.append("| " + " | ".join(["---"] * len(header)) + " |")
-        for row in grid[1:]:
-            padded = (row + [""] * len(header))[:len(header)]
-            lines.append("| " + " | ".join(padded) + " |")
-
-        md_tables.append("\n".join(lines))
-
+    
     return "\n\n".join(md_tables)
 
 
@@ -78,60 +63,56 @@ def parse_opendataloader_pdf(
     buffer: bytes,
     timeout: float = 120.0,
 ) -> ParseResult:
-    """通过 Docling Server 解析 PDF（同步版本，仅供测试使用）"""
-    resp = httpx.post(
-        DOCLING_CONVERT_URL,
-        files={"files": ("input.pdf", buffer, "application/pdf")},
-        data={"abort_on_error": "false"},
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    return _build_result(data)
+    """通过本地 Docling 库解析 PDF（同步版本）"""
+    try:
+        converter = _get_converter()
+        
+        # 将 bytes 包装为 DocumentStream
+        buf = io.BytesIO(buffer)
+        source = DocumentStream(name="input.pdf", stream=buf)
+        
+        # 执行转换
+        result = converter.convert(source)
+        
+        # 检查转换状态
+        if result.status.value != "success":
+            errors = [str(e) for e in result.errors] if result.errors else ["未知错误"]
+            raise RuntimeError(f"Docling 解析失败: {errors[0]}")
+        
+        # 提取文本和表格
+        text_content = _extract_text_from_result(result)
+        table_content = _extract_tables_as_markdown(result)
+        
+        # 组合格式文本
+        if table_content:
+            format_text = text_content + "\n\n" + table_content
+        else:
+            format_text = text_content
+        
+        return ParseResult(
+            raw_text=text_content,
+            format_text=format_text,
+            html_preview="",
+            image_list=[],
+        )
+    except Exception as e:
+        traceback.print_exc()
+        raise RuntimeError(f"OpenDataLoader-PDF 解析失败: {e}") from e
 
 
 async def parse_opendataloader_pdf_async(
     buffer: bytes,
     timeout: float = 120.0,
 ) -> ParseResult:
-    """通过 Docling Server 解析 PDF（异步版本，供 FastAPI 直接 await）"""
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(
-            DOCLING_CONVERT_URL,
-            files={"files": ("input.pdf", buffer, "application/pdf")},
-            data={"abort_on_error": "false"},
+    """通过本地 Docling 库解析 PDF（异步版本，供 FastAPI 直接 await）
+    
+    注意：Docling 的转换器是同步的，我们在线程池中执行以避免阻塞事件循环。
+    """
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        return await loop.run_in_executor(
+            pool, parse_opendataloader_pdf, buffer, timeout
         )
-        resp.raise_for_status()
-        data = resp.json()
-    return _build_result(data)
-
-
-def _build_result(data: dict) -> ParseResult:
-    """从 Docling 返回的 JSON 中构建 ParseResult"""
-    errors = data.get("errors", [])
-    doc_json = data.get("document", {}).get("json_content")
-
-    if errors and not doc_json:
-        raise RuntimeError(f"Docling 解析错误: {errors[0]}")
-
-    if not doc_json:
-        raise RuntimeError("Docling 未返回文档内容")
-
-    warning = ""
-    if errors:
-        warning = f"[警告: Docling 部分页面解析失败: {errors[0]}]\n\n"
-
-    text_content = _extract_texts(doc_json)
-    table_content = _extract_tables_as_markdown(doc_json)
-
-    if table_content:
-        format_text = warning + text_content + "\n\n" + table_content
-    else:
-        format_text = warning + text_content
-
-    return ParseResult(
-        raw_text=text_content,
-        format_text=format_text,
-        html_preview="",
-        image_list=[],
-    )
