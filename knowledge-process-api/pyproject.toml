@@ -17,6 +17,8 @@ dependencies = [
     "chardet>=5.0.0",
     "Pillow>=10.0.0",
     "httpx>=0.28.1",
+    "scikit-learn>=1.4.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [build-system]
